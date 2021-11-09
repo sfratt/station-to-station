@@ -1,4 +1,4 @@
-import socket, threading
+import socket, threading, json
 
 HOST = '127.0.0.1' # Localhost
 PORT = 65341
@@ -30,6 +30,14 @@ class Server:
     def handle_response(self, addr):
         ack_msg = 'Acknowledging Message'
         self.server.sendto(ack_msg.encode(FORMAT), addr)
+        
+    def create_msg(self, obj):
+        json_string = json.load(obj)
+        byte_len = len(json_string.encode(FORMAT), ADDR)
+        
+        message = 'GET content-length:' + byte_len + '/r/n/r/n content-type: test/json /r/n/r/n content-encoding:utf-8 /r/n/r/n' + json_string
+        
+        return (message.encode(FORMAT))
 
 if __name__ == "__main__":
     Server().start()
