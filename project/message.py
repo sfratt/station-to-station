@@ -1,4 +1,4 @@
-import json
+import json, re
 
 VERSION = 'HTTP/1.0'
 FORMAT = 'utf-8'
@@ -42,14 +42,30 @@ class Message:
 
         return response.encode(FORMAT)
 
-    def extract_url(self) -> str:
-        pass
+    def extract_url(self, message: str):
+        message_split = message.split(' ')
+        url = message_split[1]
+        
+        return url
 
-    def extract_headers(self) -> dict:
-        pass
+    def extract_headers(self, message: str):       
+        matches = re.findall('(?<=-)(.)', message)
+        integer_matches = [int(match.strip(' ')) for match in matches]
+        content_dict = {
+            "content-length": integer_matches[0],
+            "content-type": integer_matches[1],
+            "content-encoding": integer_matches[2]
+        }
+        
+        return content_dict
 
-    def extract_body(self) -> dict:
-        pass
+    def extract_body(self, message: str):
+        message_split = message.split('\r\n\r\n')
+        body_dict = {
+            'body': message_split[1]
+        }
+        
+        return body_dict
 
 
 message = Message()
