@@ -48,13 +48,13 @@ class Message:
         
         return url
 
-    def extract_headers(self, message: str):       
-        matches = re.findall('(?<=-)(.)', message)
-        integer_matches = [int(match.strip(' ')) for match in matches]
+    def extract_headers(self, message: str):
+        message_split = message.split('\r\n')
+        matches = [message.split(':')[1].strip() for message in message_split[1:3]]      
         content_dict = {
-            "content-length": integer_matches[0],
-            "content-type": integer_matches[1],
-            "content-encoding": integer_matches[2]
+            "content-length": int(matches[0]),
+            "content-type": matches[1],
+            "content-encoding": matches[2]
         }
         
         return content_dict
@@ -63,7 +63,7 @@ class Message:
         message_split = message.split('\r\n\r\n')
         body = message_split[1]
         
-        return body
+        return json.loads(body)
 
 
 message = Message()
