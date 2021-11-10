@@ -1,4 +1,4 @@
-import socket, threading, json
+import socket, threading
 
 from message import message as msg_lib
 
@@ -17,7 +17,7 @@ class Server:
     def start(self):
         print('[STARTING SERVER] Server is starting...')
         self.server.bind(ADDR)
-        print('[LISTENING] Server is listening on %s:%s' %(HOST, PORT))
+        print('[LISTENING] Server is listening on {}:{}'.format(HOST, PORT))
         
         while(True):
             try:
@@ -30,22 +30,24 @@ class Server:
 
     def handle_request(self, msg: bytes, addr):
         msg = msg.decode(FORMAT)
-        print('[NEW CONNECTION] %s:%s connected' %(addr[0], addr[1]))
-        print('[CLIENT MESSAGE] %s' %(msg))
+        print('[NEW CONNECTION] {}:{} connected'.format(addr[0], addr[1]))
+        print('[CLIENT MESSAGE] {}\r\n'.format(msg))
 
-        self.handle_response(addr)
+        # 1. Read & Extract Headers
+        # 2. Read & Extract Request Body
+        # 3. Read URL & run corresponding fuction
+        # 4. Peform the action (aka read or write to db)
+        # 5. Handle response
 
-    def handle_response(self, addr):
-        ack_msg = 'Acknowledging Message'
-        self.server.sendto(ack_msg.encode(FORMAT), addr)
-        
-    def create_msg(self, obj):
-        json_string = json.load(obj)
-        byte_len = len(json_string.encode(FORMAT), ADDR)
-        
-        message = 'GET content-length:' + byte_len + '/r/n/r/n content-type: test/json /r/n/r/n content-encoding:utf-8 /r/n/r/n' + json_string
-        
-        return (message.encode(FORMAT))
+        payload = {
+            'RQ#': '123',
+            'STATUS': '',
+        }
+        response = msg_lib.create_response(payload, 200)
+        self.server.sendto(response, addr)
+
+    def register(self):
+        pass
 
 if __name__ == "__main__":
     Server().start()
