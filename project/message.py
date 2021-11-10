@@ -61,11 +61,9 @@ class Message:
 
     def extract_body(self, message: str):
         message_split = message.split('\r\n\r\n')
-        body_dict = {
-            'body': message_split[1]
-        }
+        body = message_split[1]
         
-        return body_dict
+        return body
 
 
 message = Message()
