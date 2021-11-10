@@ -50,7 +50,7 @@ class Message:
 
     def extract_headers(self, message: str):
         message_split = message.split('\r\n')
-        matches = [message.split(':')[1].strip() for message in message_split[1:3]]      
+        matches = [message.split(':')[1].strip() for message in message_split[1:4]]      
         content_dict = {
             "content-length": int(matches[0]),
             "content-type": matches[1],
