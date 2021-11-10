@@ -1,10 +1,12 @@
 import socket, threading, json
 
+from message import message as msg_lib
+
 HOST = '127.0.0.1' # Localhost
 PORT = 65341
 ADDR = (HOST, PORT)
 
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 4096
 FORMAT = 'utf-8'
 
 class Server:
@@ -18,13 +20,19 @@ class Server:
         print('[LISTENING] Server is listening on %s:%s' %(HOST, PORT))
         
         while(True):
-            msg, addr = self.server.recvfrom(BUFFER_SIZE)
-            thread = threading.Thread(target=self.handle_request, args=(msg, addr))
-            thread.start()
+            try:
+                msg, addr = self.server.recvfrom(BUFFER_SIZE)
+                thread = threading.Thread(target=self.handle_request, args=(msg, addr))
+                thread.start()
+
+            except OSError as err:
+                print('[ERROR] %s' %(str(err)))
 
     def handle_request(self, msg: bytes, addr):
+        msg = msg.decode(FORMAT)
         print('[NEW CONNECTION] %s:%s connected' %(addr[0], addr[1]))
-        print('[CLIENT MESSAGE] %s' %(msg.decode(FORMAT)))
+        print('[CLIENT MESSAGE] %s' %(msg))
+
         self.handle_response(addr)
 
     def handle_response(self, addr):
