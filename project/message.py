@@ -1,4 +1,4 @@
-import json, re
+import json
 
 VERSION = 'HTTP/1.0'
 FORMAT = 'utf-8'

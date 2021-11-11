@@ -40,7 +40,7 @@ class Client:
             'NAME': name, 
         }
 
-        request = msg_lib.create_request('POST', '/de-register', paylaod)
+        request = msg_lib.create_request('POST', '/de_register', paylaod)
         self.send(request)
 
     def publish(self):

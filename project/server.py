@@ -34,19 +34,64 @@ class Server:
         print('[CLIENT MESSAGE] {}\r\n'.format(msg))
 
         # 1. Read & Extract Headers
-        # 2. Read & Extract Request Body
+        # 2. Read & Extract Request Body      
         # 3. Read URL & run corresponding fuction
         # 4. Peform the action (aka read or write to db)
-        # 5. Handle response
+        headers = msg_lib.extract_headers(msg)
+        body = msg_lib.extract_body(msg)
 
-        payload = {
-            'RQ#': '123',
-            'STATUS': '',
-        }
-        response = msg_lib.create_response(payload, 200)
+        api_call = msg_lib.extract_url(msg)[1:]
+        response = getattr(self, api_call)(body)
+        
+        # 5. Handle response
         self.server.sendto(response, addr)
 
-    def register(self):
+    def register(self, request: dict):
+        # Connect to db 
+        # Check if name already exists
+        name_exists = False
+
+        if(not name_exists):
+            try:
+                # Write to db (add new client)
+
+                return msg_lib.create_response({
+                    'RQ#': request['RQ#'],
+                    'STATUS': 'REGISTERED'
+                }, 200)
+
+            except Exception as err:
+                return msg_lib.create_response({
+                    'RQ#': request['RQ#'],
+                    'STATUS': 'REGISTER-FAILED',
+                    'REASON': '[ERROR] {}'.format(err)
+                }, 500)
+
+        else:
+            return msg_lib.create_response({
+                'RQ#': request['RQ#'],
+                'STATUS': 'REGISTER-DENIED',
+                'REASON': '[ERROR] Client {} already exists'.format(request['NAME'])
+            }, 500)
+
+    def de_register(self, request):
+        try:
+            # Connect to db
+            # Try to remove client name and all info
+            # If no client exists, ignore 
+            return msg_lib.create_response({
+                'RQ#': request['RQ#'],
+                'STATUS': 'DE-REGISTERED'
+            }, 200)
+
+        except Exception as err:
+            return msg_lib.create_response({
+                'RQ#': request['RQ#'],
+                'STATUS': 'DE-REGISTER-FAILED',
+                'REASON': '[ERROR] {}'.format(err)
+            }, 500)
+    
+    def publish(self, request):
         pass
 
 if __name__ == "__main__":
