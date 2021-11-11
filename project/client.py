@@ -6,17 +6,18 @@ HOST = '127.0.0.1' # Localhost
 PORT = 65341
 ADDR = (HOST, PORT)
 
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 2048
 FORMAT = 'utf-8'
 
 class Client:
     def __init__(self):
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
+        self.upd_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
+        # self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
     def send(self, request):
-        self.client.sendto(request, ADDR)
-        response, addr = self.client.recvfrom(BUFFER_SIZE)
-        print('[SERVER RESPONSE] {}\r\n'.format(response.decode(FORMAT)))
+        self.upd_socket.sendto(request, ADDR)
+        response, addr = self.upd_socket.recvfrom(BUFFER_SIZE)
+        print('[SERVER RESPONSE]\n{}\n'.format(response.decode(FORMAT)))
 
     def register(self):
         print('[REGISTER] Sending register request...')
@@ -36,18 +37,36 @@ class Client:
         print('[DE-REGISTER] Sending de-register request...')
         paylaod = {
             'ACTION': 'DE-REGISTER',
-            'RQ#': '123', # DONT UNDERSTAND THIS FIELD
+            'RQ#': '',
             'NAME': name, 
         }
 
-        request = msg_lib.create_request('POST', '/de_register', paylaod)
+        request = msg_lib.create_request('POST', '/de-register', paylaod)
         self.send(request)
 
-    def publish(self):
-        pass
+    def publish(self, name, list: list[str]):
+        print('[PUBLISH] Sending publish request...')
+        paylaod = {
+            'ACTION': 'PUBLISH',
+            'RQ#': '',
+            'NAME': name,
+            'LIST_OF_FILES': list 
+        }
 
-    def remove(self):
-        pass
+        request = msg_lib.create_request('POST', '/publish', paylaod)
+        self.send(request)
+
+    def remove(self, name, list: list[str]):
+        print('[REMOVE] Sending remove request...')
+        paylaod = {
+            'ACTION': 'REMOVE',
+            'RQ#': '',
+            'NAME': name,
+            'LIST_OF_FILES': list 
+        }
+
+        request = msg_lib.create_request('POST', '/remove', paylaod)
+        self.send(request)
     
     def retrieve_all(self):
         pass
@@ -58,6 +77,12 @@ class Client:
     def search_file(self):
         pass
 
+
+
+def main():
+    client = Client()
+    client.register()
+    client.de_register('TEST-HOST')
+
 if __name__ == "__main__":
-    Client().register()
-    Client().de_register('TEST-HOST')
+    main()

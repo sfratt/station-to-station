@@ -4,47 +4,59 @@ from message import message as msg_lib
 
 HOST = '127.0.0.1' # Localhost
 PORT = 65341
-ADDR = (HOST, PORT)
 
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 2048
 FORMAT = 'utf-8'
 
 class Server:
 
-    def __init__(self):
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
-        
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
+        self.socket_lock = threading.Lock()
+
     def start(self):
         print('[STARTING SERVER] Server is starting...')
-        self.server.bind(ADDR)
-        print('[LISTENING] Server is listening on {}:{}'.format(HOST, PORT))
+        self.server_socket.bind((self.host, self.port))
+        print('[LISTENING] Server is listening on {}:{}'.format(self.host, self.port))
         
-        while(True):
-            try:
-                msg, addr = self.server.recvfrom(BUFFER_SIZE)
-                thread = threading.Thread(target=self.handle_request, args=(msg, addr))
-                thread.start()
+        try:
+            while(True):
+                try:
+                    data, addr = self.server_socket.recvfrom(BUFFER_SIZE)
+                    thread = threading.Thread(target=self.handle_request, args=(data, addr))
+                    thread.daemon = True
+                    thread.start()
 
-            except OSError as err:
-                print('[ERROR] %s' %(str(err)))
+                except OSError as err:
+                    print('[ERROR] %s' %(str(err)))
 
-    def handle_request(self, msg: bytes, addr):
-        msg = msg.decode(FORMAT)
+        except KeyboardInterrupt:
+            self.stop()
+
+    def stop(self):
+        print('[SHUTTING DOWN SERVER] Server is shutting down...')
+        self.server_socket.close()
+
+    def handle_request(self, data: bytes, addr):
+        data = data.decode(FORMAT)
         print('[NEW CONNECTION] {}:{} connected'.format(addr[0], addr[1]))
-        print('[CLIENT MESSAGE] {}\r\n'.format(msg))
+        print('[CLIENT REQUEST]\n{}\n'.format(data))
 
-        # 1. Read & Extract Headers
-        # 2. Read & Extract Request Body      
-        # 3. Read URL & run corresponding fuction
-        # 4. Peform the action (aka read or write to db)
-        headers = msg_lib.extract_headers(msg)
-        body = msg_lib.extract_body(msg)
+        with self.socket_lock:
+            # 1. Read & Extract Headers
+            # 2. Read & Extract Request Body      
+            # 3. Read URL & run corresponding fuction
+            # 4. Peform the action (aka read or write to db)
+            headers = msg_lib.extract_headers(data)
+            body = msg_lib.extract_body(data)
 
-        api_call = msg_lib.extract_url(msg)[1:]
-        response = getattr(self, api_call)(body)
-        
-        # 5. Handle response
-        self.server.sendto(response, addr)
+            api_call = msg_lib.extract_url(data)[1:]
+            response = getattr(self, api_call)(body)
+            
+            # 5. Handle response
+            self.server_socket.sendto(response, addr)
 
     def register(self, request: dict):
         # Connect to db 
@@ -94,5 +106,11 @@ class Server:
     def publish(self, request):
         pass
 
+
+
+def main():
+    server = Server(HOST, PORT)
+    server.start()
+
 if __name__ == "__main__":
-    Server().start()
+    main()

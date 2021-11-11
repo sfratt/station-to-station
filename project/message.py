@@ -44,7 +44,7 @@ class Message:
 
     def extract_url(self, message: str):
         message_split = message.split(' ')
-        url = message_split[1]
+        url = message_split[1].replace('-', '_')
         
         return url
 
