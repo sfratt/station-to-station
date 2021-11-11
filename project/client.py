@@ -1,13 +1,7 @@
-import socket
+import socket, os
 
 from message import message as msg_lib
-
-HOST = '127.0.0.1' # Localhost
-PORT = 65341
-ADDR = (HOST, PORT)
-
-BUFFER_SIZE = 2048
-FORMAT = 'utf-8'
+from constants import ADDR, BUFFER_SIZE, FORMAT
 
 class Client:
     def __init__(self):
@@ -44,24 +38,24 @@ class Client:
         request = msg_lib.create_request('POST', '/de-register', paylaod)
         self.send(request)
 
-    def publish(self, name, list: list[str]):
+    def publish(self, list: list[str]):
         print('[PUBLISH] Sending publish request...')
         paylaod = {
             'ACTION': 'PUBLISH',
             'RQ#': '',
-            'NAME': name,
+            'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
         request = msg_lib.create_request('POST', '/publish', paylaod)
         self.send(request)
 
-    def remove(self, name, list: list[str]):
+    def remove(self, list: list[str]):
         print('[REMOVE] Sending remove request...')
         paylaod = {
             'ACTION': 'REMOVE',
             'RQ#': '',
-            'NAME': name,
+            'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
@@ -69,20 +63,53 @@ class Client:
         self.send(request)
     
     def retrieve_all(self):
+        print('[RETRIEVE-ALL] Sending retrieve all request...')
+        paylaod = {
+            'ACTION': 'RETRIEVE-ALL',
+            'RQ#': ''
+        }
+
+        request = msg_lib.create_request('GET', '/retrieve-all', paylaod)
+        self.send(request)
+
+    def retrieve_infot(self, name):
+        print('[RETRIEVE-INFOT] Sending retrieve info request...')
+        paylaod = {
+            'ACTION': 'RETRIEVE-INFOT',
+            'RQ#': '',
+            'NAME': name
+        }
+
+        request = msg_lib.create_request('GET', '/retrieve-info', paylaod)
+        self.send(request)
+
+    def search_file(self, file_name):
+        print('[SEARCH-FILE] Sending search file request...')
+        paylaod = {
+            'ACTION': 'SEARCH-FILE',
+            'RQ#': '',
+            'FILE_NAME': file_name
+        }
+
+        request = msg_lib.create_request('GET', '/search-file', paylaod)
+        self.send(request)
+
+    def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
         pass
 
-    def retrieve_infot(self):
-        pass
-
-    def search_file(self):
+    def download(self):
         pass
 
 
+# Get file names to client wants to share to public
+def get_files():
+    return os.listdir('./shared_folder')
 
 def main():
     client = Client()
     client.register()
     client.de_register('TEST-HOST')
+    client.publish(get_files())
 
 if __name__ == "__main__":
     main()

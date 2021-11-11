@@ -1,12 +1,7 @@
 import socket, threading
 
 from message import message as msg_lib
-
-HOST = '127.0.0.1' # Localhost
-PORT = 65341
-
-BUFFER_SIZE = 2048
-FORMAT = 'utf-8'
+from constants import BUFFER_SIZE, FORMAT, HOST, PORT
 
 class Server:
 
@@ -52,11 +47,21 @@ class Server:
             headers = msg_lib.extract_headers(data)
             body = msg_lib.extract_body(data)
 
-            api_call = msg_lib.extract_url(data)[1:]
-            response = getattr(self, api_call)(body)
+            try:
+                api_call = msg_lib.extract_url(data)[1:]
+                response = getattr(self, api_call)(body)
             
+            except AttributeError:
+                response = self.invalid_request()
+
             # 5. Handle response
             self.server_socket.sendto(response, addr)
+
+    def invalid_request(self):
+        return msg_lib.create_response({
+            'STATUS': 'ERROR',
+            'REASON': '[ERROR] Invalid request'
+        }, 500) 
 
     def register(self, request: dict):
         # Connect to db 
@@ -103,8 +108,8 @@ class Server:
                 'REASON': '[ERROR] {}'.format(err)
             }, 500)
     
-    def publish(self, request):
-        pass
+    # def publish(self, request):
+    #     pass
 
 
 

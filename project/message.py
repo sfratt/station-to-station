@@ -1,7 +1,8 @@
 import json
 
+from constants import FORMAT
+
 VERSION = 'HTTP/1.0'
-FORMAT = 'utf-8'
 STATUS_CODES = {
     '200': 'OK', 
     '400': 'Bad Request', 
