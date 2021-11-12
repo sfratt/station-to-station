@@ -48,14 +48,20 @@ class Server:
             body = msg_lib.extract_body(data)
 
             try:
-                api_call = msg_lib.extract_url(data)[1:]
-                response = getattr(self, api_call)(body)
+                method_call = msg_lib.extract_method(data)
+                response = getattr(self, method_call)(body)
             
             except AttributeError:
                 response = self.invalid_request()
 
             # 5. Handle response
-            self.server_socket.sendto(response, addr)
+            try:
+                print('[RESPOND] Responding to request')
+                self.server_socket.sendto(response, addr)
+
+            except TypeError:
+                print('[IGNORE] Ignoring request')
+                pass
 
     def invalid_request(self):
         return msg_lib.create_response({
@@ -109,7 +115,8 @@ class Server:
             }, 500)
     
     # def publish(self, request):
-    #     pass
+    #     for i in range(1000000000):
+    #         pass
 
 
 

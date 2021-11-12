@@ -5,93 +5,104 @@ from constants import ADDR, BUFFER_SIZE, FORMAT
 
 class Client:
     def __init__(self):
-        self.upd_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
+        self.rq_num = -1
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
         # self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
-    def send(self, request):
-        self.upd_socket.sendto(request, ADDR)
-        response, addr = self.upd_socket.recvfrom(BUFFER_SIZE)
-        print('[SERVER RESPONSE]\n{}\n'.format(response.decode(FORMAT)))
+    def get_rq_num(self):
+        self.rq_num = (self.rq_num + 1) % 8
+        return self.rq_num
 
-    def register(self):
+    def send(self, request):
+        self.udp_socket.sendto(request, ADDR)
+
+        try:
+            response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
+            self.udp_socket.settimeout(3.0)
+            print('[SERVER RESPONSE]\n{}\n'.format(response.decode(FORMAT)))
+        
+        except socket.timeout:
+            print('[TIMEOUT] Connection timeout...')
+
+    def register(self, name):
         print('[REGISTER] Sending register request...')
         paylaod = {
             'ACTION': 'REGISTER',
-            'RQ#': '123', # DONT UNDERSTAND THIS FIELD
-            'NAME': socket.gethostname(), # Name needs to be unique
+            'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
+            'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
             'IP_ADDRESS': socket.gethostbyname(socket.gethostname()),
             'UDP_SOCKET': '', # UDP socket number it can be reached at by the server
             'TCP_SOCKET': '' # TCP socket number to be used for file transfer with peers
         }
 
-        request = msg_lib.create_request('POST', '/register', paylaod)
+        request = msg_lib.create_request('REGISTER', paylaod)
         self.send(request)
 
     def de_register(self, name):
         print('[DE-REGISTER] Sending de-register request...')
         paylaod = {
             'ACTION': 'DE-REGISTER',
-            'RQ#': '',
+            'RQ#': self.get_rq_num(),
             'NAME': name, 
         }
 
-        request = msg_lib.create_request('POST', '/de-register', paylaod)
+        request = msg_lib.create_request('DE-REGISTER', paylaod)
         self.send(request)
 
     def publish(self, list: list[str]):
         print('[PUBLISH] Sending publish request...')
         paylaod = {
             'ACTION': 'PUBLISH',
-            'RQ#': '',
+            'RQ#': self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
-        request = msg_lib.create_request('POST', '/publish', paylaod)
+        request = msg_lib.create_request('PUBLISH', paylaod)
         self.send(request)
 
     def remove(self, list: list[str]):
         print('[REMOVE] Sending remove request...')
         paylaod = {
             'ACTION': 'REMOVE',
-            'RQ#': '',
+            'RQ#':  self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
-        request = msg_lib.create_request('POST', '/remove', paylaod)
+        request = msg_lib.create_request('REMOVE', paylaod)
         self.send(request)
     
     def retrieve_all(self):
         print('[RETRIEVE-ALL] Sending retrieve all request...')
         paylaod = {
             'ACTION': 'RETRIEVE-ALL',
-            'RQ#': ''
+            'RQ#':  self.get_rq_num()
         }
 
-        request = msg_lib.create_request('GET', '/retrieve-all', paylaod)
+        request = msg_lib.create_request('RETRIEVE-ALL', paylaod)
         self.send(request)
 
     def retrieve_infot(self, name):
-        print('[RETRIEVE-INFOT] Sending retrieve info request...')
+        print('[RETRIEVE-INFO] Sending retrieve info request...')
         paylaod = {
-            'ACTION': 'RETRIEVE-INFOT',
-            'RQ#': '',
+            'ACTION': 'RETRIEVE-INFO',
+            'RQ#':  self.get_rq_num(),
             'NAME': name
         }
 
-        request = msg_lib.create_request('GET', '/retrieve-info', paylaod)
+        request = msg_lib.create_request('RETRIEVE-INFO', paylaod)
         self.send(request)
 
     def search_file(self, file_name):
         print('[SEARCH-FILE] Sending search file request...')
         paylaod = {
             'ACTION': 'SEARCH-FILE',
-            'RQ#': '',
+            'RQ#':  self.get_rq_num(),
             'FILE_NAME': file_name
         }
 
-        request = msg_lib.create_request('GET', '/search-file', paylaod)
+        request = msg_lib.create_request('SEARCH-FILE', paylaod)
         self.send(request)
 
     def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
@@ -107,7 +118,7 @@ def get_files():
 
 def main():
     client = Client()
-    client.register()
+    client.register('TEST-HOST')
     client.de_register('TEST-HOST')
     client.publish(get_files())
 

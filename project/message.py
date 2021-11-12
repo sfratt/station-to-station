@@ -2,7 +2,6 @@ import json
 
 from constants import FORMAT
 
-VERSION = 'HTTP/1.0'
 STATUS_CODES = {
     '200': 'OK', 
     '400': 'Bad Request', 
@@ -19,13 +18,13 @@ class Message:
     def __init__(self):
         pass
 
-    def create_request(self, method: str, url: str, payload):
+    def create_request(self, method: str, payload):
         body = json.dumps(payload)
         content_length = len(body.encode(FORMAT))
         content_type = 'text/json' # text/json or text/string or binary
         content_encoding = 'utf-8' # utf-8 or binary
 
-        request = '{} {} {}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(method, url, VERSION, content_length, content_type, content_encoding, body)
+        request = '{}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(method, content_length, content_type, content_encoding, body)
         # print('[REQUEST CREATED] Request message:\n{}'.format(request))
 
         return request.encode(FORMAT)
@@ -38,20 +37,19 @@ class Message:
 
         phrase = STATUS_CODES[str(status_code)]
 
-        response = '{} {} {}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(VERSION, status_code, phrase, content_length, content_type, content_encoding, body)
+        response = '{} {}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(status_code, phrase, content_length, content_type, content_encoding, body)
         # print('[RESPONSE CREATED] Response message:\n{}'.format(response))
 
         return response.encode(FORMAT)
 
-    def extract_url(self, message: str):
-        message_split = message.split(' ')
-        url = message_split[1].replace('-', '_')
-        
-        return url
+    def extract_method(self, message: str):
+        method = message.split('\r\n')[0]
 
+        return method.lower().replace('-', '_')
+        
     def extract_headers(self, message: str):
         message_split = message.split('\r\n')
-        matches = [message.split(':')[1].strip() for message in message_split[1:4]]      
+        matches = [message.split(':')[1].strip() for message in message_split[1:4]] # Change to accept dynamic number of headers, not just 3     
         content_dict = {
             "content-length": int(matches[0]),
             "content-type": matches[1],
@@ -61,8 +59,7 @@ class Message:
         return content_dict
 
     def extract_body(self, message: str):
-        message_split = message.split('\r\n\r\n')
-        body = message_split[1]
+        body = message.split('\r\n\r\n')[1]
         
         return json.loads(body)
 
@@ -70,5 +67,5 @@ class Message:
 message = Message()
 
 # TESTs
-message.create_request('GET', '/test', {'test': '123'})
-message.create_response({'ACK': True}, 200)
+# message.create_request('TEST-METHOD', {'test': '123'})
+# message.create_response({'ACK': True}, 200)
