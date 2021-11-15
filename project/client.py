@@ -15,7 +15,10 @@ class Client:
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
         self.get_port_num()
-        self.start() # Need to start on a thread because client needs to listen, talk to server & talk to other clients
+        # self.start() # Need to start on a thread because client needs to listen, talk to server & talk to other clients
+        client_listening_thread = threading.Thread(target=self.start, args=())
+        client_listening_thread.daemon = True
+        client_listening_thread.start()
 
     def get_rq_num(self):
         self.rq_num = (self.rq_num + 1) % 8
@@ -56,8 +59,10 @@ class Client:
         try:
             data = conn.recv(1024) # Need to determine buffer size
             data = data.decode(FORMAT)
-            # Read all data
-            # Use data
+            self.print_log('Client request\n{}'.format(data))
+            # 1. Read header then body
+            # 2. Slice file into 200 chars and send 
+            # 3. Send end of file when done
 
         except OSError as err:
             self.print_log('ERROR: {}'.format(err))
@@ -136,7 +141,7 @@ class Client:
         request = msg_lib.create_request('RETRIEVE-ALL', paylaod)
         self.send_to_udp_server(request)
 
-    def retrieve_infot(self, name):
+    def retrieve_info(self, name):
         self.print_log('Sending retrieve info request...')
         paylaod = {
             'ACTION': 'RETRIEVE-INFO',
@@ -161,19 +166,70 @@ class Client:
     def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
         pass
 
-    def download(self):
-        pass
+    def download(self, host, port):
+        download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.print_log('Download socket created')
+
+        try:
+            self.print_log('Connecting to {}:{} for file download'.format(host, port))
+            download_socket.connect((host, port))
+            # 1. Send download request
+            # 2. Handle incoming file 
+            # 3. Assemble all file packets
+            download_socket.send('TESTING'.encode(FORMAT))
+
+        except OSError as err:
+            self.print_log('ERROR: {}'.format(err))
+
+        finally:
+            download_socket.close()
+            self.print_log('Connection {}:{} closed'.format(host, port))
+
 
 
 # Get file names to client wants to share to public
 def get_files():
     return os.listdir('./shared_folder')
 
+# FOR TESTING
+def print_options():
+    return '''*****CLIENT*****
+
+Please select the function you would like to perform:
+1. Register
+2. De-register
+3. Publish
+4. Remove
+5. Retrieve all
+6. Retrieve info
+7. Search file
+8. Update Contact
+9. Download
+
+Press 0 to close client\n'''
+
 def main():
     client = Client()
-    client.register('TEST-HOST')
-    client.de_register('TEST-HOST')
-    client.publish(get_files())
+    quit = False
+
+    while(not quit):
+        choice = input(print_options())
+
+        if(choice == '1'):
+            client.register('TEST-HOST')
+        elif(choice == '2'):
+            client.de_register('TEST-HOST')
+        elif(choice == '3'):
+            client.publish(get_files())
+
+
+        elif(choice == '9'):
+            client.download('192.168.2.38', 13033) # For testing, need to hard code host & port
+        elif (choice == '0'):
+            quit = True
+
+    client.stop()
+    print('Exit Client Program')
 
 if __name__ == "__main__":
     main()
