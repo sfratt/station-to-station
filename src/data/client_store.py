@@ -1,6 +1,6 @@
 import sqlite3
 
-from src.models.client import Client
+from models.client_dto import ClientDto
 
 
 class ClientStore():
@@ -41,12 +41,12 @@ class ClientStore():
         print("Database connection closed")
         return self._connection.close()
 
-    def get_all_clients(self) -> list[Client]:
+    def get_all_clients(self) -> list[ClientDto]:
         self._cursor.execute("SELECT * FROM clients")
         clients = self._cursor.fetchall()
         return clients
 
-    def check_client_exists(self, client: Client) -> bool:
+    def check_client_exists(self, client: ClientDto) -> bool:
         sql = "SELECT * FROM clients WHERE name = (?)"
         self._cursor.execute(sql, (client.name,))
         if (self._cursor.fetchone()):
@@ -56,7 +56,7 @@ class ClientStore():
         # client = self._cursor.fetchone()
         # return client
 
-    def add_client(self, client: Client) -> None:
+    def add_client(self, client: ClientDto) -> None:
         if (not self.check_client_exists(client)):
             self._cursor.execute("INSERT INTO clients VALUES (?, ?, ?, ?)", (
                 client.name, client.ip_address, client.udp_socket, client.tcp_socket))
@@ -65,12 +65,12 @@ class ClientStore():
             raise Exception(
                 f"The name {client.name} already exists in the database")
 
-    def delete_client(self, client: Client) -> None:
+    def delete_client(self, client: ClientDto) -> None:
         sql = "DELETE FROM clients WHERE name = (?)"
         self._cursor.execute(sql, (client.name,))
         self._connection.commit()
 
-    def update_client(self, client: Client) -> None:
+    def update_client(self, client: ClientDto) -> None:
         sql = "UPDATE clients SET name = (?), ip_address = (?), udp_socket = (?), tcp_socket = (?) WHERE name = (?)"
         self._cursor.execute(
             sql, (client.name, client.ip_address, client.udp_socket, client.tcp_socket, client.name))
@@ -80,17 +80,3 @@ class ClientStore():
     #     sql = "DROP DATABASE clients"
     #     self._cursor.execute(sql)
     #     self._connection.commit()
-
-
-if __name__ == "__main__":
-    with ClientStore() as client_store:
-        client = Client('test-name', '127.0.0.1', 6080, 8080)
-    # client_store = ClientStore()
-    # try:
-    #     client_store.add_client(client)
-    # except Exception as e:
-    #     print("Exception caught", e.args)
-    # print(client_store.get_all_clients())
-    # client_store.delete_client(client)
-    # client_store.drop_database()
-        client_store.update_client(client)
