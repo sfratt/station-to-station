@@ -1,0 +1,6 @@
+HOST = '127.0.0.1' # Localhost
+PORT = 65341
+ADDR = (HOST, PORT)
+
+BUFFER_SIZE = 2048
+FORMAT = 'utf-8'
