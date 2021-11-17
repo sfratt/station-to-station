@@ -1,7 +1,10 @@
 import socket, threading
+from datetime import datetime
 
 from message import message as msg_lib
-from constants import BUFFER_SIZE, FORMAT, HOST, PORT
+from models.constants import BUFFER_SIZE, FORMAT, HOST, PORT
+from data.client_store import ClientStore
+from models.client_dto import ClientDto
 
 class Server:
 
@@ -11,10 +14,14 @@ class Server:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
         self.socket_lock = threading.Lock()
 
+    def print_log(self, msg: str):
+        date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
+        print('[{}] {}'.format(date_time, msg))
+
     def start(self):
-        print('[STARTING SERVER] Server is starting...')
+        self.print_log('Starting Server...')
         self.server_socket.bind((self.host, self.port))
-        print('[LISTENING] Server is listening on {}:{}'.format(self.host, self.port))
+        self.print_log('Server is listening on {}:{}'.format(self.host, self.port))
         
         try:
             while(True):
@@ -25,42 +32,38 @@ class Server:
                     thread.start()
 
                 except OSError as err:
-                    print('[ERROR] %s' %(str(err)))
+                    self.print_log('ERROR: {}'.format(err))
 
         except KeyboardInterrupt:
             self.stop()
 
     def stop(self):
-        print('[SHUTTING DOWN SERVER] Server is shutting down...')
+        self.print_log('Server is shutting down...')
         self.server_socket.close()
 
     def handle_request(self, data: bytes, addr):
         data = data.decode(FORMAT)
-        print('[NEW CONNECTION] {}:{} connected'.format(addr[0], addr[1]))
-        print('[CLIENT REQUEST]\n{}\n'.format(data))
+        self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
+        self.print_log('Client request:\n{}\n'.format(data))
 
         with self.socket_lock:
-            # 1. Read & Extract Headers
-            # 2. Read & Extract Request Body      
-            # 3. Read URL & run corresponding fuction
-            # 4. Peform the action (aka read or write to db)
             headers = msg_lib.extract_headers(data)
             body = msg_lib.extract_body(data)
 
             try:
                 method_call = msg_lib.extract_method(data)
-                response = getattr(self, method_call)(body)
+                response = getattr(self, method_call)(body, addr)
             
             except AttributeError:
-                response = self.invalid_request()
+                response = self.invalid_request(body)
 
             # 5. Handle response
             try:
-                print('[RESPOND] Responding to request')
+                self.print_log('Responding to request')
                 self.server_socket.sendto(response, addr)
 
             except TypeError:
-                print('[IGNORE] Ignoring request')
+                self.print_log('Ignoring request')
                 pass
 
     def invalid_request(self):
@@ -69,15 +72,12 @@ class Server:
             'REASON': '[ERROR] Invalid request'
         }, 500) 
 
-    def register(self, request: dict):
-        # Connect to db 
-        # Check if name already exists
-        name_exists = False
-
-        if(not name_exists):
+    def register(self, request: dict, client_addr):
+        client_dto = ClientDto(request['NAME'], request['IP_ADDRESS'], client_addr[1], request['TCP_SOCKET'])
+        
+        with ClientStore() as db:
             try:
-                # Write to db (add new client)
-
+                db.add_client(client_dto)
                 return msg_lib.create_response({
                     'RQ#': request['RQ#'],
                     'STATUS': 'REGISTERED'
@@ -86,35 +86,28 @@ class Server:
             except Exception as err:
                 return msg_lib.create_response({
                     'RQ#': request['RQ#'],
-                    'STATUS': 'REGISTER-FAILED',
+                    'STATUS': 'REGISTER-DENIED',
                     'REASON': '[ERROR] {}'.format(err)
                 }, 500)
 
-        else:
-            return msg_lib.create_response({
-                'RQ#': request['RQ#'],
-                'STATUS': 'REGISTER-DENIED',
-                'REASON': '[ERROR] Client {} already exists'.format(request['NAME'])
-            }, 500)
+    def de_register(self, request, client_addr):
+        # De-register should delete all data that belows to client as well as client itself 
+        # ERROR: Currently you can de-register a non registered name
+        client_dto = ClientDto(request['NAME'], None, None, None)
+        
+        with ClientStore() as db:
+            try:
+                db.delete_client(client_dto)
+                return msg_lib.create_response({
+                    'RQ#': request['RQ#'],
+                    'STATUS': 'DE-REGISTERED'
+                }, 200)
 
-    def de_register(self, request):
-        try:
-            # Connect to db
-            # Try to remove client name and all info
-            # If no client exists, ignore 
-            return msg_lib.create_response({
-                'RQ#': request['RQ#'],
-                'STATUS': 'DE-REGISTERED'
-            }, 200)
-
-        except Exception as err:
-            return msg_lib.create_response({
-                'RQ#': request['RQ#'],
-                'STATUS': 'DE-REGISTER-FAILED',
-                'REASON': '[ERROR] {}'.format(err)
-            }, 500)
+            except Exception as err:
+                self.print_log('Name is not registered')
+                return None
     
-    # def publish(self, request):
+    # def publish(self, request, client_addr):
     #     for i in range(1000000000):
     #         pass
 

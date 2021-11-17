@@ -3,7 +3,7 @@ from random import randint
 from datetime import datetime
 
 from message import message as msg_lib
-from constants import ADDR, BUFFER_SIZE, FORMAT
+from models.constants import ADDR, BUFFER_SIZE, FORMAT
 
 class Client:
     def __init__(self):
@@ -89,7 +89,7 @@ class Client:
             'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
             'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
             'IP_ADDRESS': self.host,
-            'UDP_SOCKET': '', # UDP socket number it can be reached at by the server
+            'UDP_SOCKET': None, # UDP socket number it can be reached at by the server
             'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
         }
 

@@ -1,6 +1,6 @@
 import json
 
-from constants import FORMAT
+from models.constants import FORMAT
 
 STATUS_CODES = {
     '200': 'OK', 
