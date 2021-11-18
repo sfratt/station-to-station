@@ -1,82 +1,87 @@
-import sqlite3
-
+from data.store import Store, StoreException
 from models.client_dto import ClientDto
+from models.file_dto import FileDto
 
 
-class ClientStore():
+class ClientStore(Store):
+    """Concrete implementation of the Repository and Unit of Work patterns for the SQLite database."""
 
-    def __init__(self) -> None:
-        # Connect to database
-        self._connection = sqlite3.connect("clients.db")
+    def __init__(self):
+        super().__init__()
+        self.cursor = self.connection.cursor()
 
-        # Create a cursor
-        self._cursor = self._connection.cursor()
-
-        # Create a clients table
-        clients_sql = """CREATE TABLE clients (
-                        name TEXT,
-                        ip_address TEXT,
-                        udp_socket INTEGER,
-                        tcp_socket INTEGER,
-                        PRIMARY KEY (name)
-                    )"""
-
-        # Create a files table
-        files_sql = """CREATE TABLE files (
-                        client_name TEXT REFERENCES clients (name),
-                        file_name TEXT,
-                        PRIMARY KEY (client_name, file_name)
-                    )"""
+    def create_tables(self) -> None:
+        """Create the `clients` and `files` tables in the SQLite database."""
         try:
-            self._cursor.execute(clients_sql)
-            self._cursor.execute(files_sql)
-            self._connection.commit()
+            clients_sql = """CREATE TABLE clients (
+                            name TEXT,
+                            ip_address TEXT,
+                            udp_socket INTEGER,
+                            tcp_socket INTEGER,
+                            PRIMARY KEY (name)
+                        )"""
+
+            files_sql = """CREATE TABLE files (
+                            client_name TEXT REFERENCES clients (name),
+                            file_name TEXT,
+                            PRIMARY KEY (client_name, file_name)
+                        )"""
+
+            self.cursor.execute(clients_sql)
+            self.cursor.execute(files_sql)
         except Exception as e:
-            print("The database was already created", e.args)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        print("Database connection closed")
-        return self._connection.close()
+            raise StoreException('error creating tables', e.args)
 
     def get_all_clients(self) -> list[ClientDto]:
-        self._cursor.execute("SELECT * FROM clients")
-        clients = self._cursor.fetchall()
-        return clients
+        try:
+            self.cursor.execute("SELECT * FROM clients")
+            clients = self.cursor.fetchall()
+            return clients
+        except Exception as e:
+            raise StoreException('error retrieving clients', e.args)
 
-    def check_client_exists(self, client: ClientDto) -> bool:
-        sql = "SELECT * FROM clients WHERE name = (?)"
-        self._cursor.execute(sql, (client.name,))
-        if (self._cursor.fetchone()):
-            return True
-        else:
-            return False
+    # def check_client_exists(self, client: ClientDto) -> bool:
+    #     sql = "SELECT * FROM clients WHERE name = (?)"
+    #     self.cursor.execute(sql, (client.name,))
+    #     if (self.cursor.fetchone()):
+    #         return True
+    #     else:
+    #         return False
         # client = self._cursor.fetchone()
         # return client
 
     def add_client(self, client: ClientDto) -> None:
-        if (not self.check_client_exists(client)):
-            self._cursor.execute("INSERT INTO clients VALUES (?, ?, ?, ?)", (
+        try:
+            # if (not self.check_client_exists(client)):
+            self.cursor.execute("INSERT INTO clients VALUES (?, ?, ?, ?)", (
                 client.name, client.ip_address, client.udp_socket, client.tcp_socket))
-            self._connection.commit()
-        else:
-            raise Exception(
-                f"The name {client.name} already exists in the database")
+        # else:
+        except Exception as e:
+            raise StoreException(
+                f"name {client.name} already exists in the database", e.args)
 
     def delete_client(self, client: ClientDto) -> None:
-        sql = "DELETE FROM clients WHERE name = (?)"
-        self._cursor.execute(sql, (client.name,))
-        self._connection.commit()
+        try:
+            self.cursor.execute(
+                "DELETE FROM clients WHERE name = (?)", (client.name,))
+        except Exception as e:
+            raise StoreException("error deleting client", e.args)
 
     def update_client(self, client: ClientDto) -> None:
-        sql = "UPDATE clients SET name = (?), ip_address = (?), udp_socket = (?), tcp_socket = (?) WHERE name = (?)"
-        self._cursor.execute(
-            sql, (client.name, client.ip_address, client.udp_socket, client.tcp_socket, client.name))
-        self._connection.commit()
+        try:
+            sql = "UPDATE clients SET name = (?), ip_address = (?), udp_socket = (?), tcp_socket = (?) WHERE name = (?)"
+            self.cursor.execute(
+                sql, (client.name, client.ip_address, client.udp_socket, client.tcp_socket, client.name))
+        except Exception as e:
+            raise StoreException("error updating client", e.args)
 
-    # def drop_database(self):
-    #     sql = "DROP DATABASE clients"
-    #     self._cursor.execute(sql)
-    #     self._connection.commit()
+    def get_all_files(self) -> list[FileDto]:
+        try:
+            sql = "SELECT client_name, file_name FROM clients INNER JOIN files ON name = client_name"
+            self.cursor.execute(sql)
+            files = self.cursor.fetchall()
+            return files
+        except Exception as e:
+            raise StoreException('error retrieving clients', e.args)
+
+    # deletion of client requires deletion of all files as well
