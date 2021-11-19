@@ -4,7 +4,11 @@ from models.file_dto import FileDto
 
 
 class ClientStore(Store):
-    """Concrete implementation of the Repository and Unit of Work patterns for the SQLite database."""
+    """
+    Data access layer that persists data to the SQLite database or or retrieves data from the SQLite database.
+    Fully decouple the data access layer from other services by implementing the Repository and Unit of Work 
+    patterns to achieve atomic operations (ie. commit successful changes and rollback unsuccessful changes).
+    """
 
     def __init__(self):
         super().__init__()
@@ -40,6 +44,9 @@ class ClientStore(Store):
         except Exception as e:
             raise StoreException('error retrieving clients', e.args)
 
+    # def get_client():
+    #     pass
+
     # def check_client_exists(self, client: ClientDto) -> bool:
     #     sql = "SELECT * FROM clients WHERE name = (?)"
     #     self.cursor.execute(sql, (client.name,))
@@ -47,8 +54,6 @@ class ClientStore(Store):
     #         return True
     #     else:
     #         return False
-        # client = self._cursor.fetchone()
-        # return client
 
     def add_client(self, client: ClientDto) -> None:
         try:
@@ -60,13 +65,6 @@ class ClientStore(Store):
             raise StoreException(
                 f"name {client.name} already exists in the database", e.args)
 
-    def delete_client(self, client: ClientDto) -> None:
-        try:
-            self.cursor.execute(
-                "DELETE FROM clients WHERE name = (?)", (client.name,))
-        except Exception as e:
-            raise StoreException("error deleting client", e.args)
-
     def update_client(self, client: ClientDto) -> None:
         try:
             sql = "UPDATE clients SET name = (?), ip_address = (?), udp_socket = (?), tcp_socket = (?) WHERE name = (?)"
@@ -74,6 +72,13 @@ class ClientStore(Store):
                 sql, (client.name, client.ip_address, client.udp_socket, client.tcp_socket, client.name))
         except Exception as e:
             raise StoreException("error updating client", e.args)
+
+    def delete_client(self, client: ClientDto) -> None:
+        try:
+            self.cursor.execute(
+                "DELETE FROM clients WHERE name = (?)", (client.name,))
+        except Exception as e:
+            raise StoreException("error deleting client", e.args)
 
     def get_all_files(self) -> list[FileDto]:
         try:
