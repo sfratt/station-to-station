@@ -1,9 +1,9 @@
-import socket, threading, os
+import socket, threading, os, json
 from random import randint
 from datetime import datetime
 
 from message import message as msg_lib
-from models.constants import ADDR, BUFFER_SIZE, FORMAT
+from models.constants import ADDR, BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
@@ -57,19 +57,48 @@ class Client:
         self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
 
         try:
-            data = conn.recv(1024) # Need to determine buffer size
-            data = data.decode(FORMAT)
-            self.print_log('Client request\n{}'.format(data))
-            # 1. Read header then body
-            # 2. Slice file into 200 chars and send 
-            # 3. Send end of file when done
+            data = conn.recv(HEADER_SIZE).decode(FORMAT)
+            header = msg_lib.extract_headers(data)
+            content_length = header['content-length']
+
+            data = conn.recv(content_length).decode(FORMAT)
+            body = json.loads(data)
+            self.print_log('Client request\nHeader: {}\nBody: {}\n'.format(header, body))
 
         except OSError as err:
             self.print_log('ERROR: {}'.format(err))
 
-        finally:
-            conn.close()
-            self.print_log('Connection {}:{} closed'.format(addr[0], addr[1]))
+        self.print_log('Starting download...')
+        chunk_num = 0
+        file_name = body['FILE_NAME']
+        path = os.path.join('..\shared_folder', file_name)
+        self.print_log('Reading file from {}'.format(path))
+
+        with open(path, 'r') as file:
+            while (True):
+                chunk = file.read(200)
+
+                if (not chunk):
+                    break
+
+                payload = {
+                    'RQ#': self.get_rq_num(),
+                    'FILE_NAME': file_name,
+                    'CHUNK#': chunk_num,
+                    'TEXT': chunk
+                }
+
+                if (len(chunk) < 200):
+                    self.print_log('Sending final chunk # {}'.format(chunk_num))
+                    response = msg_lib.create_request('FILE-END', payload)
+                else:
+                    self.print_log('Sending chunk # {}'.format(chunk_num))
+                    response = msg_lib.create_request('FILE', payload)
+
+                conn.send(response)
+                chunk_num += 1
+        
+        self.print_log('Download complete')
 
     def send_to_udp_server(self, request):
         self.udp_socket.sendto(request, ADDR)
@@ -84,7 +113,7 @@ class Client:
 
     def register(self, name):
         self.print_log('Sending register request...')
-        paylaod = {
+        payload = {
             'ACTION': 'REGISTER',
             'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
             'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
@@ -93,90 +122,126 @@ class Client:
             'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
         }
 
-        request = msg_lib.create_request('REGISTER', paylaod)
+        request = msg_lib.create_request('REGISTER', payload)
         self.send_to_udp_server(request)
 
     def de_register(self, name):
         self.print_log('Sending de-register request...')
-        paylaod = {
+        payload = {
             'ACTION': 'DE-REGISTER',
             'RQ#': self.get_rq_num(),
             'NAME': name, 
         }
 
-        request = msg_lib.create_request('DE-REGISTER', paylaod)
+        request = msg_lib.create_request('DE-REGISTER', payload)
         self.send_to_udp_server(request)
 
     def publish(self, list: list[str]):
         self.print_log('Sending publish request...')
-        paylaod = {
+        payload = {
             'ACTION': 'PUBLISH',
             'RQ#': self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
-        request = msg_lib.create_request('PUBLISH', paylaod)
+        request = msg_lib.create_request('PUBLISH', payload)
         self.send_to_udp_server(request)
 
     def remove(self, list: list[str]):
         self.print_log('Sending remove request...')
-        paylaod = {
+        payload = {
             'ACTION': 'REMOVE',
             'RQ#':  self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
         }
 
-        request = msg_lib.create_request('REMOVE', paylaod)
+        request = msg_lib.create_request('REMOVE', payload)
         self.send_to_udp_server(request)
     
     def retrieve_all(self):
         self.print_log('Sending retrieve all request...')
-        paylaod = {
+        payload = {
             'ACTION': 'RETRIEVE-ALL',
             'RQ#':  self.get_rq_num()
         }
 
-        request = msg_lib.create_request('RETRIEVE-ALL', paylaod)
+        request = msg_lib.create_request('RETRIEVE-ALL', payload)
         self.send_to_udp_server(request)
 
     def retrieve_info(self, name):
         self.print_log('Sending retrieve info request...')
-        paylaod = {
+        payload = {
             'ACTION': 'RETRIEVE-INFO',
             'RQ#':  self.get_rq_num(),
             'NAME': name
         }
 
-        request = msg_lib.create_request('RETRIEVE-INFO', paylaod)
+        request = msg_lib.create_request('RETRIEVE-INFO', payload)
         self.send_to_udp_server(request)
 
     def search_file(self, file_name):
         self.print_log('Sending search file request...')
-        paylaod = {
+        payload = {
             'ACTION': 'SEARCH-FILE',
             'RQ#':  self.get_rq_num(),
             'FILE_NAME': file_name
         }
 
-        request = msg_lib.create_request('SEARCH-FILE', paylaod)
+        request = msg_lib.create_request('SEARCH-FILE', payload)
         self.send_to_udp_server(request)
 
     def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
         pass
 
-    def download(self, host, port):
+    def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
 
         try:
             self.print_log('Connecting to {}:{} for file download'.format(host, port))
             download_socket.connect((host, port))
-            # 1. Send download request
-            # 2. Handle incoming file 
-            # 3. Assemble all file packets
-            download_socket.send('TESTING'.encode(FORMAT))
+
+            payload = {
+                'RQ#': self.get_rq_num(),
+                'FILE_NAME': file_name
+            }
+
+            request = msg_lib.create_request('DOWNLOAD', payload)
+            download_socket.send(request)
+            
+            # Handle Response of Files
+            self.print_log('Downloading...')
+            chunk_dict = {}
+
+            while (True):
+                data = download_socket.recv(HEADER_SIZE).decode(FORMAT)
+                method_call = msg_lib.extract_method(data)
+                header = msg_lib.extract_headers(data)
+                content_length = header['content-length']
+
+                data = download_socket.recv(content_length).decode(FORMAT)
+                body = json.loads(data)
+                self.print_log('Incoming file chunk: {}'.format(body))
+
+                chunk_num = body['CHUNK#']
+                chunk = body['TEXT']
+                chunk_dict[chunk_num] = chunk
+
+                if (method_call == 'file_end'):
+                    total_chunk_num = body['CHUNK#']
+                    break
+            
+            # Assemble File
+            path = os.path.join('..\downloads', file_name)
+            self.print_log('Assembling file to {}'.format(path))
+
+            with open(path, 'w') as file:
+                for i in range(total_chunk_num + 1):
+                    file.write(chunk_dict[i])
+
+            self.print_log('Download complete')
 
         except OSError as err:
             self.print_log('ERROR: {}'.format(err))
@@ -187,11 +252,13 @@ class Client:
 
 
 
+# ***** FOR TESTING *****
+
 # Get file names to client wants to share to public
 def get_files():
     return os.listdir('./shared_folder')
 
-# FOR TESTING
+# Temp cmd line menu
 def print_options():
     return '''*****CLIENT*****
 
@@ -224,7 +291,7 @@ def main():
 
 
         elif(choice == '9'):
-            client.download('192.168.2.38', 13033) # For testing, need to hard code host & port
+            client.download('192.168.2.38', 63969, 'test1.txt') # For testing, need to hard code host & port
         elif (choice == '0'):
             quit = True
 

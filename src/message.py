@@ -1,6 +1,6 @@
 import json
 
-from models.constants import FORMAT
+from models.constants import FORMAT, METHOD_HEADER_SIZE, LENGTH_HEADER_SIZE, TYPE_HEADER_SIZE, ENCODING_HEADER_SIZE
 
 STATUS_CODES = {
     '200': 'OK', 
@@ -24,7 +24,7 @@ class Message:
         content_type = 'text/json' # text/json or text/string or binary
         content_encoding = 'utf-8' # utf-8 or binary
 
-        request = '{}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(method, content_length, content_type, content_encoding, body)
+        request = f'{method:<{METHOD_HEADER_SIZE}}\r\nContent-Length: {content_length:<{LENGTH_HEADER_SIZE}}\r\nContent-Type: {content_type:<{TYPE_HEADER_SIZE}}\r\nContent-Encoding: {content_encoding:<{ENCODING_HEADER_SIZE}}\r\n\r\n{body}' # Create a fixed length msg
         # print('[REQUEST CREATED] Request message:\n{}'.format(request))
 
         return request.encode(FORMAT)
@@ -43,7 +43,7 @@ class Message:
         return response.encode(FORMAT)
 
     def extract_method(self, message: str):
-        method = message.split('\r\n')[0]
+        method = message.split('\r\n')[0].strip()
 
         return method.lower().replace('-', '_')
         
