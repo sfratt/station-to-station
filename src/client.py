@@ -14,8 +14,8 @@ class Client:
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
-        self.get_port_num()
-        client_listening_thread = threading.Thread(target=self.start, args=())
+        self.get_tcp_port_num()
+        client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
 
@@ -23,14 +23,14 @@ class Client:
         self.rq_num = (self.rq_num + 1) % 8
         return self.rq_num
 
-    def get_port_num(self):
+    def get_tcp_port_num(self):
         self.tcp_port = randint(10000, 65535)
 
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         print('[{}] {}'.format(date_time, msg))
 
-    def start(self):
+    def start_tcp_server(self):
         self.print_log('Starting Client...')
         is_bound = False
         while (not is_bound):
@@ -39,23 +39,23 @@ class Client:
                 is_bound = True
 
             except OSError:
-                self.get_port_num()
+                self.get_tcp_port_num()
 
         self.print_log('Client is listening on {}:{}'.format(self.host, self.tcp_port))
         self.tcp_socket.listen()
 
         while (True):
             conn, addr = self.tcp_socket.accept()
-            new_client_thread = threading.Thread(target=self.handle_request, args=(conn, addr))
+            new_client_thread = threading.Thread(target=self.handle_download_request, args=(conn, addr))
             new_client_thread.daemon = True
             new_client_thread.start()
 
-    def stop(self):
+    def stop_tcp_server(self):
         self.print_log('Client is shutting down...')
         self.udp_socket.close()
         self.tcp_socket.close()
 
-    def handle_request(self, conn: socket.socket, addr):
+    def handle_download_request(self, conn: socket.socket, addr):
         self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
 
         try:
@@ -65,7 +65,7 @@ class Client:
 
             data = conn.recv(content_length).decode(FORMAT)
             body = json.loads(data)
-            self.print_log('Client request\nHeader: {}\nBody: {}\n'.format(header, body))
+            self.print_log('Client Request\nHeader: {}\nBody: {}\n'.format(header, body))
 
         except OSError as err:
             self.print_log('ERROR: {}'.format(err))
@@ -75,32 +75,43 @@ class Client:
         file_name = body['FILE_NAME']
         path = os.path.join('..\shared_folder', file_name)
         self.print_log('Reading file from {}'.format(path))
-
-        with open(path, 'r') as file:
-            while (True):
-                chunk = file.read(200)
-
-                if (not chunk):
-                    break
-
-                payload = {
-                    'RQ#': self.get_rq_num(),
-                    'FILE_NAME': file_name,
-                    'CHUNK#': chunk_num,
-                    'TEXT': chunk
-                }
-
-                if (len(chunk) < 200):
-                    self.print_log('Sending final chunk # {}'.format(chunk_num))
-                    response = msg_lib.create_request('FILE-END', payload)
-                else:
-                    self.print_log('Sending chunk # {}'.format(chunk_num))
-                    response = msg_lib.create_request('FILE', payload)
-
-                conn.send(response)
-                chunk_num += 1
         
-        self.print_log('Download complete')
+        try:
+            with open(path, 'r') as file:
+                while (True):
+                    chunk = file.read(200)
+
+                    if (not chunk):
+                        break
+
+                    payload = {
+                        'RQ#': body['RQ#'],
+                        'FILE_NAME': file_name,
+                        'CHUNK#': chunk_num,
+                        'TEXT': chunk
+                    }
+
+                    if (len(chunk) < 200):
+                        self.print_log('Sending final chunk # {}'.format(chunk_num))
+                        response = msg_lib.create_request('FILE-END', payload)
+                    else:
+                        self.print_log('Sending chunk # {}'.format(chunk_num))
+                        response = msg_lib.create_request('FILE', payload)
+
+                    conn.send(response)
+                    chunk_num += 1
+            
+            self.print_log('Download complete')
+
+        except Exception as err:
+            self.print_log('Download Error\nReason: {}'.format(err))
+            payload = {
+                'STATUS': 'DOWNLOAD-ERROR',
+                'RQ#': body['RQ#'],
+                'REASON': str(err)
+            }
+            response = msg_lib.create_response(payload, 500)
+            conn.send(response)
 
     def send_to_udp_server(self, request):
         self.udp_socket.sendto(request, ADDR)
@@ -227,6 +238,10 @@ class Client:
                 body = json.loads(data)
                 self.print_log('Incoming file chunk: {}'.format(body))
 
+                if ('STATUS' in body and body['STATUS'] == 'DOWNLOAD-ERROR'):
+                    self.print_log('DOWNLOAD-ERROR: {}'.format(body['REASON']))
+                    return
+
                 chunk_num = body['CHUNK#']
                 chunk = body['TEXT']
                 chunk_dict[chunk_num] = chunk
@@ -293,11 +308,11 @@ def main():
 
 
         elif(choice == '9'):
-            client.download('192.168.2.38', 63969, 'test1.txt') # For testing, need to hard code host & port
+            client.download('192.168.2.38', 19862, 'test1.txt') # For testing, need to hard code host & port
         elif (choice == '0'):
             quit = True
 
-    client.stop()
+    client.stop_tcp_server()
     print('Exit Client Program')
 
 if __name__ == "__main__":
