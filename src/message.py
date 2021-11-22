@@ -1,6 +1,6 @@
 import json
 
-from models.constants import FORMAT
+from models.constants import FORMAT, METHOD_HEADER_SIZE, LENGTH_HEADER_SIZE, TYPE_HEADER_SIZE, ENCODING_HEADER_SIZE
 
 STATUS_CODES = {
     '200': 'OK', 
@@ -21,35 +21,36 @@ class Message:
     def create_request(self, method: str, payload):
         body = json.dumps(payload)
         content_length = len(body.encode(FORMAT))
-        content_type = 'text/json' # text/json or text/string or binary
-        content_encoding = 'utf-8' # utf-8 or binary
+        content_type = 'text/json'
+        content_encoding = FORMAT
 
-        request = '{}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(method, content_length, content_type, content_encoding, body)
-        # print('[REQUEST CREATED] Request message:\n{}'.format(request))
+        # Using fixed length header
+        request = f'{method:<{METHOD_HEADER_SIZE}}\r\nContent-Length: {content_length:<{LENGTH_HEADER_SIZE}}\r\nContent-Type: {content_type:<{TYPE_HEADER_SIZE}}\r\nContent-Encoding: {content_encoding:<{ENCODING_HEADER_SIZE}}\r\n\r\n{body}'
 
         return request.encode(FORMAT)
 
     def create_response(self, payload, status_code: int):
         body = json.dumps(payload)
         content_length = len(body.encode(FORMAT))
-        content_type = 'text/json' # text/json or text/string or binary
-        content_encoding = 'utf-8' # utf-8 or binary
+        content_type = 'text/json'
+        content_encoding = FORMAT
 
         phrase = STATUS_CODES[str(status_code)]
+        status = f'{status_code} {phrase}'
 
-        response = '{} {}\r\nContent-Length: {}\r\nContent-Type: {}\r\nContent-Encoding: {}\r\n\r\n{}'.format(status_code, phrase, content_length, content_type, content_encoding, body)
-        # print('[RESPONSE CREATED] Response message:\n{}'.format(response))
+        # Using fixed length header
+        response = f'{status:<{METHOD_HEADER_SIZE}}\r\nContent-Length: {content_length:<{LENGTH_HEADER_SIZE}}\r\nContent-Type: {content_type:<{TYPE_HEADER_SIZE}}\r\nContent-Encoding: {content_encoding:<{ENCODING_HEADER_SIZE}}\r\n\r\n{body}'
 
         return response.encode(FORMAT)
 
     def extract_method(self, message: str):
-        method = message.split('\r\n')[0]
+        method = message.split('\r\n')[0].strip()
 
         return method.lower().replace('-', '_')
         
     def extract_headers(self, message: str):
         message_split = message.split('\r\n')
-        matches = [message.split(':')[1].strip() for message in message_split[1:4]] # Change to accept dynamic number of headers, not just 3     
+        matches = [message.split(':')[1].strip() for message in message_split[1:4]]    
         content_dict = {
             "content-length": int(matches[0]),
             "content-type": matches[1],
