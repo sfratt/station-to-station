@@ -15,7 +15,6 @@ class Client:
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
         self.get_port_num()
-        # self.start() # Need to start on a thread because client needs to listen, talk to server & talk to other clients
         client_listening_thread = threading.Thread(target=self.start, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
@@ -33,20 +32,23 @@ class Client:
 
     def start(self):
         self.print_log('Starting Client...')
-        self.tcp_socket.bind((self.host, self.tcp_port)) # Need to check if port number already exists
+        is_bound = False
+        while (not is_bound):
+            try:
+                self.tcp_socket.bind((self.host, self.tcp_port))
+                is_bound = True
+
+            except OSError:
+                self.get_port_num()
+
         self.print_log('Client is listening on {}:{}'.format(self.host, self.tcp_port))
+        self.tcp_socket.listen()
 
-        try:
-            self.tcp_socket.listen()
-
-            while(True):
-                conn, addr = self.tcp_socket.accept()
-                new_client_thread = threading.Thread(target=self.handle_request, args=(conn, addr))
-                new_client_thread.daemon = True
-                new_client_thread.start()
-
-        except KeyboardInterrupt:
-            self.stop()
+        while (True):
+            conn, addr = self.tcp_socket.accept()
+            new_client_thread = threading.Thread(target=self.handle_request, args=(conn, addr))
+            new_client_thread.daemon = True
+            new_client_thread.start()
 
     def stop(self):
         self.print_log('Client is shutting down...')
