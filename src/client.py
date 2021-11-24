@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter.constants import DISABLED, NORMAL
 
 from message import message as msg_lib
-from models.constants import ADDR, BUFFER_SIZE, FORMAT, HEADER_SIZE
+from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
@@ -123,7 +123,7 @@ class Client:
             conn.send(response)
 
     def send_to_udp_server(self, request):
-        self.udp_socket.sendto(request, ADDR)
+        self.udp_socket.sendto(request, ('192.168.2.38', 9000))
 
         try:
             response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
@@ -136,7 +136,6 @@ class Client:
     def register(self, name):
         self.print_log('Sending register request...')
         payload = {
-            'ACTION': 'REGISTER',
             'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
             'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
             'IP_ADDRESS': self.host,
@@ -150,7 +149,6 @@ class Client:
     def de_register(self, name):
         self.print_log('Sending de-register request...')
         payload = {
-            'ACTION': 'DE-REGISTER',
             'RQ#': self.get_rq_num(),
             'NAME': name, 
         }
@@ -161,7 +159,6 @@ class Client:
     def publish(self, list: list[str]):
         self.print_log('Sending publish request...')
         payload = {
-            'ACTION': 'PUBLISH',
             'RQ#': self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
@@ -173,7 +170,6 @@ class Client:
     def remove(self, list: list[str]):
         self.print_log('Sending remove request...')
         payload = {
-            'ACTION': 'REMOVE',
             'RQ#':  self.get_rq_num(),
             'NAME': socket.gethostname(),
             'LIST_OF_FILES': list 
@@ -185,7 +181,6 @@ class Client:
     def retrieve_all(self):
         self.print_log('Sending retrieve all request...')
         payload = {
-            'ACTION': 'RETRIEVE-ALL',
             'RQ#':  self.get_rq_num()
         }
 
@@ -195,7 +190,6 @@ class Client:
     def retrieve_info(self, name):
         self.print_log('Sending retrieve info request...')
         payload = {
-            'ACTION': 'RETRIEVE-INFO',
             'RQ#':  self.get_rq_num(),
             'NAME': name
         }
@@ -206,7 +200,6 @@ class Client:
     def search_file(self, file_name):
         self.print_log('Sending search file request...')
         payload = {
-            'ACTION': 'SEARCH-FILE',
             'RQ#':  self.get_rq_num(),
             'FILE_NAME': file_name
         }
@@ -214,14 +207,17 @@ class Client:
         request = msg_lib.create_request('SEARCH-FILE', payload)
         self.send_to_udp_server(request)
 
-    def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
-        pass
-    
-    def insert_log(self,msg):
-        self.log_text.configure(state=NORMAL)
-        self.log_text.insert(tk.END, msg + "\n")
-        self.log_text.configure(state=DISABLED)
-        
+    def update_contact(self, name: str):
+        self.print_log('Sending update request...')
+        payload = {
+            'RQ#': self.get_rq_num(),
+            'NAME': name,
+            'IP_ADDRESS': self.host,
+            'TCP_SOCKET': self.tcp_port
+        }
+
+        request = msg_lib.create_request('UPDATE-CONTACT', payload)
+        self.send_to_udp_server(request)
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -281,7 +277,12 @@ class Client:
         finally:
             download_socket.close()
             self.print_log('Connection {}:{} closed'.format(host, port))
-            
+
+    def insert_log(self,msg):
+        self.log_text.configure(state=NORMAL)
+        self.log_text.insert(tk.END, msg + "\n")
+        self.log_text.configure(state=DISABLED)
+
     def gui(self):
         window = tk.Tk()
         window.geometry("900x800")
@@ -342,7 +343,7 @@ class Client:
 
 # Get file names to client wants to share to public
 def get_files():
-    return os.listdir('./shared_folder')
+    return os.listdir('..\shared_folder')
 
 # Temp cmd line menu
 def print_options():
@@ -363,9 +364,35 @@ Press 0 to close client\n'''
 
 def main():
     client = Client()
-    
-    #client.stop_tcp_server()
-    #print('Exit Client Program')
+    quit = False
+
+    while(not quit):
+        choice = input(print_options())
+
+        if(choice == '1'):
+            client.register('TEST-HOST')
+        elif(choice == '2'):
+            client.de_register('TEST-HOST')
+        elif(choice == '3'):
+            client.publish(get_files())
+        elif(choice == '4'):
+            client.remove(['test.txt'])
+        elif(choice == '5'):
+            client.retrieve_all()
+        elif(choice == '6'):
+            client.retrieve_info('TEST-HOST')
+        elif(choice == '7'):
+            client.search_file('test1.txt')
+        elif(choice == '8'):
+            client.update_contact('TEST-HOST')
+        elif(choice == '9'):
+            client.download('192.168.2.38', 19862, 'test1.txt') # For testing, need to hard code host & port
+        elif (choice == '0'):
+            quit = True
+
+    client.stop_tcp_server()
+    print('Exit Client Program')
 
 if __name__ == "__main__":
-   main()
+   # main()
+    Client()

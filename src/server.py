@@ -3,9 +3,11 @@ import threading
 from datetime import datetime
 
 from message import message as msg_lib
-from models.constants import BUFFER_SIZE, FORMAT, HOST, PORT
+from models.constants import BUFFER_SIZE, FORMAT
 from data.client_store import ClientStore
+from data.store import StoreException
 from models.client_dto import ClientDto
+from models.file_dto import FileDto
 
 
 class Server:
@@ -13,9 +15,14 @@ class Server:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.server_socket = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM)  # UDP Socket
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP Socket
         self.socket_lock = threading.Lock()
+
+        with ClientStore() as db:
+            try: # FIX DONT DO THIS
+                db.create_tables()
+            except:
+                pass
 
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
@@ -28,11 +35,10 @@ class Server:
             self.host, self.port))
 
         try:
-            while(True):
+            while (True):
                 try:
-                    data, addr = self.server_socket.recvfrom(BUFFER_SIZE)
-                    thread = threading.Thread(
-                        target=self.handle_request, args=(data, addr))
+                    request, client_addr = self.server_socket.recvfrom(BUFFER_SIZE)
+                    thread = threading.Thread(target=self.handle_request, args=(request, client_addr))
                     thread.daemon = True
                     thread.start()
 
@@ -46,80 +52,214 @@ class Server:
         self.print_log('Server is shutting down...')
         self.server_socket.close()
 
-    def handle_request(self, data: bytes, addr):
-        data = data.decode(FORMAT)
-        self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
-        self.print_log('Client request:\n{}\n'.format(data))
+    def handle_request(self, request: bytes, client_addr):
+        request = request.decode(FORMAT)
+        self.print_log('New request from {}:{}'.format(client_addr[0], client_addr[1]))
+        self.print_log('Client Request\n{}\n'.format(request))
 
         with self.socket_lock:
-            headers = msg_lib.extract_headers(data)
-            body = msg_lib.extract_body(data)
+            headers = msg_lib.extract_headers(request)
+            body = msg_lib.extract_body(request)
 
             try:
-                method_call = msg_lib.extract_method(data)
-                response = getattr(self, method_call)(body, addr)
-
+                method_call = msg_lib.extract_method(request)
+                response = getattr(self, method_call)(body, client_addr)
+            
             except AttributeError:
-                response = self.invalid_request(body)
+                response = self.invalid_request()
 
-            # 5. Handle response
             try:
-                self.print_log('Responding to request')
-                self.server_socket.sendto(response, addr)
+                self.print_log('Responding to request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
+                self.server_socket.sendto(response, client_addr)
 
             except TypeError:
-                self.print_log('Ignoring request')
+                self.print_log('Ignoring request from {}'.format(client_addr[0]))
                 pass
 
     def invalid_request(self):
         return msg_lib.create_response({
             'STATUS': 'ERROR',
-            'REASON': '[ERROR] Invalid request'
-        }, 500)
+            'REASON': 'Invalid request'
+        }, 500) 
 
-    def register(self, request: dict, client_addr):
-        client_dto = ClientDto(
-            request['NAME'], request['IP_ADDRESS'], client_addr[1], request['TCP_SOCKET'])
-
+    def register(self, data: dict, client_addr):
+        client_dto = ClientDto(data['NAME'], data['IP_ADDRESS'], client_addr[1], data['TCP_SOCKET'])
+        
         with ClientStore() as db:
             try:
+                self.print_log('Adding client to database')
                 db.register_client(client_dto)
                 return msg_lib.create_response({
-                    'RQ#': request['RQ#'],
+                    'RQ#': data['RQ#'],
                     'STATUS': 'REGISTERED'
                 }, 200)
 
-            except Exception as err:
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
                 return msg_lib.create_response({
-                    'RQ#': request['RQ#'],
+                    'RQ#': data['RQ#'],
                     'STATUS': 'REGISTER-DENIED',
-                    'REASON': '[ERROR] {}'.format(err)
+                    'REASON': '{}'.format(err)
                 }, 500)
 
-    def de_register(self, request, client_addr):
-        # De-register should delete all data that belows to client as well as client itself
-        # ERROR: Currently you can de-register a non registered name
-        client_dto = ClientDto(request['NAME'], None, None, None)
-
+    def de_register(self, data: dict, client_addr):
+        client_dto = ClientDto(name = data['NAME'])
+        
         with ClientStore() as db:
             try:
+                self.print_log('Removing client from database')
                 db.deregister_client(client_dto)
                 return msg_lib.create_response({
-                    'RQ#': request['RQ#'],
+                    'RQ#': data['RQ#'],
                     'STATUS': 'DE-REGISTERED'
                 }, 200)
 
-            except Exception as err:
-                self.print_log('Name is not registered')
-                return None
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'DE-REGISTER-ERROR',
+                    'REASON': '{}'.format(err)
+                }, 500)
+    
+    # FIX
+    def publish(self, data: dict, client_addr):
+        # client_dto = ClientDto(name = data['NAME'])
+        
+        with ClientStore() as db:
+            try:
+                self.print_log('Publishing list of files to database')
+                # db.publish()
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'PUBLISHED'
+                }, 200)
 
-    # def publish(self, request, client_addr):
-    #     for i in range(1000000000):
-    #         pass
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'PUBLISH-DENIED',
+                    'REASON': '{}'.format(err)
+                }, 500)
+
+    # FIX
+    def remove(self, data: dict, client_addr):
+        # client_dto = ClientDto(name = data['NAME'])
+        
+        with ClientStore() as db:
+            try:
+                self.print_log('Removing list of files from database')
+                # db.remove()
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'REMOVED'
+                }, 200)
+
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'REMOVED-DENIED',
+                    'REASON': '{}'.format(err)
+                }, 500)
+
+    # FIX - Missing list of files
+    def retrieve_all(self, data: dict, client_addr):
+        with ClientStore() as db:
+            try:
+                self.print_log('Retrieving list of all clients from database')
+                all_clients = db.get_all_clients()
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'RETRIEVED-ALL',
+                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3], 'LIST_OF_FILES': []} for col in all_clients]
+                }, 200)
+
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'RETRIEVE-ERROR',
+                    'REASON': '{}'.format(err)
+                }, 500)
+
+    # FIX
+    def retrieve_info(self, data: dict, client_addr):
+        name = data['NAME']
+        
+        with ClientStore() as db:
+            try:
+                self.print_log('Retrieving list of files of client {} from database'.format(name))
+                # client = db.get_client(name)
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'RETRIEVED-INFO',
+                    'NAME': '',
+                    'IP_ADDRESS': '',
+                    'TCP_SOCKET': '',
+                    'LIST_OF_FILES': []
+                    # 'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3], 'LIST_OF_FILES': []} for col in client]
+                }, 200)
+
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'RETRIEVE-ERROR',
+                    'REASON': '{}'.format(err)
+                }, 500)
+
+    # FIX
+    def search_file(self, data: dict, client_addr):
+        file_name = data['FILE_NAME']
+        
+        with ClientStore() as db:
+            try:
+                self.print_log('Searching for file {} in database'.format(file_name))
+                clients = [] # db.find_file(file_name)
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'FILE-FOUND',
+                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3]} for col in clients]
+                }, 200)
+
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'SEARCH-ERROR',
+                    'REASON': '{}'.format(err)
+                }, 500)
+
+    def update_contact(self, data: dict, client_addr):
+        client_dto = ClientDto(data['NAME'], data['IP_ADDRESS'], client_addr[1], data['TCP_SOCKET'])
+        
+        with ClientStore() as db:
+            try:
+                self.print_log('Adding client to database')
+                db.update_client(client_dto)
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'UPDATE-CONFIRMED',
+                    'NAME': client_dto.name,
+                    'IP_ADDRESS': client_dto.ip_address,
+                    'UDP_SOCKET': client_dto.udp_socket,
+                    'TCP_SOCKET': client_dto.tcp_socket
+                }, 200)
+
+            except StoreException as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return msg_lib.create_response({
+                    'RQ#': data['RQ#'],
+                    'STATUS': 'UPDATE-DENIED',
+                    'REASON': '{}'.format(err)
+                }, 500)
 
 
 def main():
-    server = Server(HOST, PORT)
+    ip_address = socket.gethostbyname(socket.gethostname())
+    server = Server(ip_address, 9000)
     server.start()
 
 
