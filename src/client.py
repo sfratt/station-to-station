@@ -1,12 +1,19 @@
 import socket, threading, os, json
 from random import randint
 from datetime import datetime
+import tkinter as tk
+from tkinter.constants import DISABLED, NORMAL
 
 from message import message as msg_lib
 from models.constants import ADDR, BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
+        
+        gui_thread = threading.Thread(target=self.gui, args=())
+        #gui_thread.daemon = True
+        gui_thread.start()
+        
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -18,6 +25,7 @@ class Client:
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
+        
 
     def get_rq_num(self):
         self.rq_num = (self.rq_num + 1) % 8
@@ -29,6 +37,7 @@ class Client:
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         print('[{}] {}'.format(date_time, msg))
+        self.insert_log('[{}] {}'.format(date_time, msg))
 
     def start_tcp_server(self):
         self.print_log('Starting Client...')
@@ -207,6 +216,11 @@ class Client:
 
     def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
         pass
+    
+    def insert_log(self,msg):
+        self.log_text.configure(state=NORMAL)
+        self.log_text.insert(tk.END, msg + "\n")
+        self.log_text.configure(state=DISABLED)
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -266,6 +280,28 @@ class Client:
         finally:
             download_socket.close()
             self.print_log('Connection {}:{} closed'.format(host, port))
+            
+    def gui(self):
+        window = tk.Tk()
+        window.geometry("900x800")
+        window.resizable(False, False)
+
+        label = tk.Label(text="Name").place(x=0, y=0)
+        entry = tk.Entry(window, width=40)
+        entry.place(x=50, y=0)
+
+        tk.Button(window, text="Register", command=lambda: self.register(entry.get())).place(x=0, y=25)
+        tk.Button(window, text="Deregister", command=self.de_register).place(x=55, y=25)
+        tk.Button(window, text="Func1", command=self.register).place(x=120, y=25)
+
+        scroll = tk.Scrollbar(window)
+
+        self.log_text = tk.Text(window, height=45, width=110, state=DISABLED)
+        self.log_text.place(x=0, y=50)
+        
+        # Need to start running the Client() when the UI starts
+
+        window.mainloop()
 
 
 
@@ -294,26 +330,11 @@ Press 0 to close client\n'''
 
 def main():
     client = Client()
-    quit = False
 
-    while(not quit):
-        choice = input(print_options())
+    
 
-        if(choice == '1'):
-            client.register('TEST-HOST')
-        elif(choice == '2'):
-            client.de_register('TEST-HOST')
-        elif(choice == '3'):
-            client.publish(get_files())
-
-
-        elif(choice == '9'):
-            client.download('192.168.2.38', 19862, 'test1.txt') # For testing, need to hard code host & port
-        elif (choice == '0'):
-            quit = True
-
-    client.stop_tcp_server()
-    print('Exit Client Program')
+    #client.stop_tcp_server()
+    #print('Exit Client Program')
 
 if __name__ == "__main__":
-    main()
+   main()
