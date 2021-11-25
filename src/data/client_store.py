@@ -103,7 +103,7 @@ class ClientStore(Store):
     def delete_client(self, client: ClientDto) -> None:
         """
         Deletes an existing client's name and all associated information.
-        Implement `DE-REGISTER` and returns None or StoreException
+        Implements `DE-REGISTER` and returns None or StoreException
         depending if the operation succeeds or fails (Specification 2.1).
         """
         try:
@@ -119,6 +119,22 @@ class ClientStore(Store):
             files = self._cursor.fetchall()
             return files
         except Exception as e:
-            raise StoreException('error retrieving clients', e.args)
+            raise StoreException("error retrieving clients", e.args)
+
+    def add_files(self, name: str, files: List[FileDto]):
+        """
+        Publishes a list of files available to the client.
+        Implements `PUBLISH` and returns None for `PUBLISHED` and 
+        StoreException for `PUBLISH-DENIED` (Specification 2.2).
+        """
+        try:
+            if (self.__check_client_exists(name)):
+                file_tuples = [(name, file) for file in files]
+                self._cursor.executemany(
+                    "INSERT INTO files VALUES (?, ?)", file_tuples)
+            else:
+                raise Exception(f"name {name} does not exist in the database")
+        except Exception as e:
+            raise StoreException("error inserting files", e.args)
 
     # deletion of client requires deletion of all files as well

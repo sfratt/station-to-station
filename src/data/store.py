@@ -1,11 +1,6 @@
 import sqlite3
 
 
-def get_connection():
-    """Return an open connection to the SQLite database."""
-    return sqlite3.connect('clients.db')
-
-
 class StoreException(Exception):
     def __init__(self, message, *errors):
         Exception.__init__(self, message)
@@ -14,8 +9,9 @@ class StoreException(Exception):
 
 class Store():
     def __init__(self):
+        """Open a connection to the SQLite database."""
         try:
-            self.connection = get_connection()
+            self.connection = sqlite3.connect('clients.db')
         except Exception as e:
             raise StoreException(*e.args, **e.kwargs)
         self._complete = False
