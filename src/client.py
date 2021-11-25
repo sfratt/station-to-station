@@ -1,12 +1,19 @@
 import socket, threading, os, json
 from random import randint
 from datetime import datetime
+import tkinter as tk
+from tkinter.constants import DISABLED, NORMAL
 
 from message import message as msg_lib
 from models.constants import ADDR, BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
+        
+        gui_thread = threading.Thread(target=self.gui, args=())
+        #gui_thread.daemon = True
+        gui_thread.start()
+        
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -18,6 +25,7 @@ class Client:
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
+        
 
     def get_rq_num(self):
         self.rq_num = (self.rq_num + 1) % 8
@@ -29,6 +37,7 @@ class Client:
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         print('[{}] {}'.format(date_time, msg))
+        self.insert_log('[{}] {}'.format(date_time, msg))
 
     def start_tcp_server(self):
         self.print_log('Starting Client...')
@@ -207,6 +216,12 @@ class Client:
 
     def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
         pass
+    
+    def insert_log(self,msg):
+        self.log_text.configure(state=NORMAL)
+        self.log_text.insert(tk.END, msg + "\n")
+        self.log_text.configure(state=DISABLED)
+        
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -266,6 +281,60 @@ class Client:
         finally:
             download_socket.close()
             self.print_log('Connection {}:{} closed'.format(host, port))
+            
+    def gui(self):
+        window = tk.Tk()
+        window.geometry("900x800")
+        window.resizable(False, False)
+
+        name_label = tk.Label(text="Name").place(x=0, y=0)
+        name_entry = tk.Entry(window, width=15)
+        name_entry.place(x=80, y=0)
+        
+        file_name_label = tk.Label(text="File name(s)").place(x=190, y=0)
+        file_name_entry = tk.Entry(window, width=80)
+        file_name_entry.place(x=270, y=0)
+        
+        host_name_label = tk.Label(text="Host name").place(x=0, y=25)
+        host_name_entry = tk.Entry(window, width=15)
+        host_name_entry.place(x=80, y=25)
+        
+        port_name_label = tk.Label(text="Port number").place(x=190, y=25)
+        port_name_entry = tk.Entry(window, width=15)
+        port_name_entry.place(x=270, y=25)
+             
+
+        register_button = tk.Button(window, text="Register", command=lambda: self.register(name_entry.get()))
+        register_button.place(x=0, y=50)
+        degister_button = tk.Button(window, text="Deregister", command=self.de_register)
+        degister_button.place(x=55, y=50)
+        publish_button = tk.Button(window, text="Publish", command=self.register)
+        publish_button.place(x=120, y=50)
+        remove_button = tk.Button(window, text="Remove", command=self.register)
+        remove_button.place(x=170, y=50)
+        retrieveall_button = tk.Button(window, text="Retrieve-all", command=self.register)
+        retrieveall_button.place(x=225, y=50)
+        retrieveinfo_button = tk.Button(window, text="Retrieve-info", command=self.register)
+        retrieveinfo_button.place(x=295, y=50)
+        searchfile_button = tk.Button(window, text="Search-file", command=self.register)
+        searchfile_button.place(x=375, y=50)
+        download_button = tk.Button(window, text="Download", command=self.register)
+        download_button.place(x=443, y=50)
+        updatecontact_button = tk.Button(window, text="Update-contact", command=self.register)
+        updatecontact_button.place(x=508, y=50)
+        connect_button = tk.Button(window, text="Connect to Server", command=self.register)
+        connect_button.place(x=602, y=50)
+        
+
+        scroll = tk.Scrollbar(window)
+
+        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
+        self.log_text.place(x=0, y=75)
+        
+        
+        # Need to start running the Client() when the UI starts
+
+        window.mainloop()
 
 
 
@@ -294,26 +363,9 @@ Press 0 to close client\n'''
 
 def main():
     client = Client()
-    quit = False
-
-    while(not quit):
-        choice = input(print_options())
-
-        if(choice == '1'):
-            client.register('TEST-HOST')
-        elif(choice == '2'):
-            client.de_register('TEST-HOST')
-        elif(choice == '3'):
-            client.publish(get_files())
-
-
-        elif(choice == '9'):
-            client.download('192.168.2.38', 19862, 'test1.txt') # For testing, need to hard code host & port
-        elif (choice == '0'):
-            quit = True
-
-    client.stop_tcp_server()
-    print('Exit Client Program')
+    
+    #client.stop_tcp_server()
+    #print('Exit Client Program')
 
 if __name__ == "__main__":
-    main()
+   main()
