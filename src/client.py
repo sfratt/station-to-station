@@ -221,6 +221,7 @@ class Client:
         self.log_text.configure(state=NORMAL)
         self.log_text.insert(tk.END, msg + "\n")
         self.log_text.configure(state=DISABLED)
+        
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -286,18 +287,50 @@ class Client:
         window.geometry("900x800")
         window.resizable(False, False)
 
-        label = tk.Label(text="Name").place(x=0, y=0)
-        entry = tk.Entry(window, width=40)
-        entry.place(x=50, y=0)
+        name_label = tk.Label(text="Name").place(x=0, y=0)
+        name_entry = tk.Entry(window, width=15)
+        name_entry.place(x=80, y=0)
+        
+        file_name_label = tk.Label(text="File name(s)").place(x=190, y=0)
+        file_name_entry = tk.Entry(window, width=80)
+        file_name_entry.place(x=270, y=0)
+        
+        host_name_label = tk.Label(text="Host name").place(x=0, y=25)
+        host_name_entry = tk.Entry(window, width=15)
+        host_name_entry.place(x=80, y=25)
+        
+        port_name_label = tk.Label(text="Port number").place(x=190, y=25)
+        port_name_entry = tk.Entry(window, width=15)
+        port_name_entry.place(x=270, y=25)
+             
 
-        tk.Button(window, text="Register", command=lambda: self.register(entry.get())).place(x=0, y=25)
-        tk.Button(window, text="Deregister", command=self.de_register).place(x=55, y=25)
-        tk.Button(window, text="Func1", command=self.register).place(x=120, y=25)
+        register_button = tk.Button(window, text="Register", command=lambda: self.register(name_entry.get()))
+        register_button.place(x=0, y=50)
+        degister_button = tk.Button(window, text="Deregister", command=self.de_register)
+        degister_button.place(x=55, y=50)
+        publish_button = tk.Button(window, text="Publish", command=self.register)
+        publish_button.place(x=120, y=50)
+        remove_button = tk.Button(window, text="Remove", command=self.register)
+        remove_button.place(x=170, y=50)
+        retrieveall_button = tk.Button(window, text="Retrieve-all", command=self.register)
+        retrieveall_button.place(x=225, y=50)
+        retrieveinfo_button = tk.Button(window, text="Retrieve-info", command=self.register)
+        retrieveinfo_button.place(x=295, y=50)
+        searchfile_button = tk.Button(window, text="Search-file", command=self.register)
+        searchfile_button.place(x=375, y=50)
+        download_button = tk.Button(window, text="Download", command=self.register)
+        download_button.place(x=443, y=50)
+        updatecontact_button = tk.Button(window, text="Update-contact", command=self.register)
+        updatecontact_button.place(x=508, y=50)
+        connect_button = tk.Button(window, text="Connect to Server", command=self.register)
+        connect_button.place(x=602, y=50)
+        
 
         scroll = tk.Scrollbar(window)
 
-        self.log_text = tk.Text(window, height=45, width=110, state=DISABLED)
-        self.log_text.place(x=0, y=50)
+        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
+        self.log_text.place(x=0, y=75)
+        
         
         # Need to start running the Client() when the UI starts
 
@@ -330,9 +363,7 @@ Press 0 to close client\n'''
 
 def main():
     client = Client()
-
     
-
     #client.stop_tcp_server()
     #print('Exit Client Program')
 
