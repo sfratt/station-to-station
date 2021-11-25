@@ -9,6 +9,7 @@ from data.store import StoreException
 from models.client_dto import ClientDto
 from models.file_dto import FileDto
 
+import time
 
 class Server:
 
@@ -58,24 +59,24 @@ class Server:
         self.print_log('New request from {}:{}'.format(client_addr[0], client_addr[1]))
         self.print_log('Client Request\n{}\n'.format(request))
 
-        with self.socket_lock:
-            headers = msg_lib.extract_headers(request)
-            body = msg_lib.extract_body(request)
+        # with self.socket_lock:
+        headers = msg_lib.extract_headers(request)
+        body = msg_lib.extract_body(request)
 
-            try:
-                method_call = msg_lib.extract_method(request)
-                response = getattr(self, method_call)(body, client_addr)
-            
-            except AttributeError:
-                response = self.invalid_request()
+        try:
+            method_call = msg_lib.extract_method(request)
+            response = getattr(self, method_call)(body, client_addr)
+        
+        except AttributeError:
+            response = self.invalid_request()
 
-            try:
-                self.print_log('Responding to request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
-                self.server_socket.sendto(response, client_addr)
+        try:
+            self.print_log('Responding to request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
+            self.server_socket.sendto(response, client_addr)
 
-            except TypeError:
-                self.print_log('Ignoring request from {}'.format(client_addr[0]))
-                pass
+        except TypeError:
+            self.print_log('Ignoring request from {}'.format(client_addr[0]))
+            pass
 
     def invalid_request(self):
         return msg_lib.create_response({
@@ -128,6 +129,8 @@ class Server:
     # FIX
     def publish(self, data: dict, client_addr):
         # client_dto = ClientDto(name = data['NAME'])
+
+        # time.sleep(10) # Testing Timeout 
         
         with ClientStore() as db:
             try:

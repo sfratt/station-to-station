@@ -9,11 +9,14 @@ from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
+        self.start_ui_lock = threading.Lock()
         
+        self.start_ui_lock.acquire()
         gui_thread = threading.Thread(target=self.gui, args=())
-        #gui_thread.daemon = True
+        # gui_thread.daemon = True
         gui_thread.start()
         
+        self.server_addr = ('192.168.2.38', 9000) 
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -22,13 +25,15 @@ class Client:
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
         self.get_tcp_port_num()
+        self.start_ui_lock.acquire()
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
         
 
     def get_rq_num(self):
-        self.rq_num = (self.rq_num + 1) % 8
+        # self.rq_num = (self.rq_num + 1) % 8
+        self.rq_num += 1
         return self.rq_num
 
     def get_tcp_port_num(self):
@@ -36,8 +41,9 @@ class Client:
 
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
-        print('[{}] {}'.format(date_time, msg))
-        self.insert_log('[{}] {}'.format(date_time, msg))
+        log  = '[{}] {}'.format(date_time, msg)
+        self.insert_log(log)
+        print(log)
 
     def start_tcp_server(self):
         self.print_log('Starting Client...')
@@ -123,11 +129,11 @@ class Client:
             conn.send(response)
 
     def send_to_udp_server(self, request):
-        self.udp_socket.sendto(request, ('192.168.2.38', 9000))
+        self.udp_socket.sendto(request, self.server_addr)
 
         try:
             response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
-            self.udp_socket.settimeout(3.0)
+            self.udp_socket.settimeout(5.0)
             self.print_log('Server Response\n{}\n'.format(response.decode(FORMAT)))
         
         except socket.timeout:
@@ -144,6 +150,8 @@ class Client:
         }
 
         request = msg_lib.create_request('REGISTER', payload)
+        # register_thread = threading.Thread(target=self.send_to_udp_server, args=(request, ))
+        # register_thread.start()
         self.send_to_udp_server(request)
 
     def de_register(self, name):
@@ -165,6 +173,8 @@ class Client:
         }
 
         request = msg_lib.create_request('PUBLISH', payload)
+        # publish_thread = threading.Thread(target=self.send_to_udp_server, args=(request, ))
+        # publish_thread.start()
         self.send_to_udp_server(request)
 
     def remove(self, list: list[str]):
@@ -288,6 +298,11 @@ class Client:
         window.geometry("900x800")
         window.resizable(False, False)
 
+        scroll = tk.Scrollbar(window)
+
+        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
+        self.log_text.place(x=0, y=75)
+
         name_label = tk.Label(text="Name").place(x=0, y=0)
         name_entry = tk.Entry(window, width=15)
         name_entry.place(x=80, y=0)
@@ -304,36 +319,37 @@ class Client:
         port_name_entry = tk.Entry(window, width=15)
         port_name_entry.place(x=270, y=25)
              
-
         register_button = tk.Button(window, text="Register", command=lambda: self.register(name_entry.get()))
         register_button.place(x=0, y=50)
+
         degister_button = tk.Button(window, text="Deregister", command=self.de_register)
         degister_button.place(x=55, y=50)
+
         publish_button = tk.Button(window, text="Publish", command=self.register)
         publish_button.place(x=120, y=50)
+
         remove_button = tk.Button(window, text="Remove", command=self.register)
         remove_button.place(x=170, y=50)
+
         retrieveall_button = tk.Button(window, text="Retrieve-all", command=self.register)
         retrieveall_button.place(x=225, y=50)
+
         retrieveinfo_button = tk.Button(window, text="Retrieve-info", command=self.register)
         retrieveinfo_button.place(x=295, y=50)
+
         searchfile_button = tk.Button(window, text="Search-file", command=self.register)
         searchfile_button.place(x=375, y=50)
+
         download_button = tk.Button(window, text="Download", command=self.register)
         download_button.place(x=443, y=50)
+
         updatecontact_button = tk.Button(window, text="Update-contact", command=self.register)
         updatecontact_button.place(x=508, y=50)
+
         connect_button = tk.Button(window, text="Connect to Server", command=self.register)
         connect_button.place(x=602, y=50)
-        
 
-        scroll = tk.Scrollbar(window)
-
-        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
-        self.log_text.place(x=0, y=75)
-        
-        
-        # Need to start running the Client() when the UI starts
+        self.start_ui_lock.release()
 
         window.mainloop()
 
