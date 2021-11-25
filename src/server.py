@@ -21,6 +21,7 @@ class Server:
         with ClientStore() as db:
             try: # FIX DONT DO THIS
                 db.create_tables()
+                db.complete()
             except:
                 pass
 
@@ -89,6 +90,7 @@ class Server:
             try:
                 self.print_log('Adding client to database')
                 db.register_client(client_dto)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'REGISTERED'
@@ -109,6 +111,7 @@ class Server:
             try:
                 self.print_log('Removing client from database')
                 db.deregister_client(client_dto)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'DE-REGISTERED'
@@ -130,6 +133,7 @@ class Server:
             try:
                 self.print_log('Publishing list of files to database')
                 # db.publish()
+                # db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'PUBLISHED'
@@ -151,6 +155,7 @@ class Server:
             try:
                 self.print_log('Removing list of files from database')
                 # db.remove()
+                # db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'REMOVED'
@@ -170,6 +175,7 @@ class Server:
             try:
                 self.print_log('Retrieving list of all clients from database')
                 all_clients = db.get_all_clients()
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'RETRIEVED-ALL',
@@ -192,6 +198,7 @@ class Server:
             try:
                 self.print_log('Retrieving list of files of client {} from database'.format(name))
                 # client = db.get_client(name)
+                # db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'RETRIEVED-INFO',
@@ -218,6 +225,7 @@ class Server:
             try:
                 self.print_log('Searching for file {} in database'.format(file_name))
                 clients = [] # db.find_file(file_name)
+                # db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'FILE-FOUND',
@@ -239,6 +247,7 @@ class Server:
             try:
                 self.print_log('Adding client to database')
                 db.update_client(client_dto)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'UPDATE-CONFIRMED',
