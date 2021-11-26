@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 from models.client_dto import ClientDto
 from models.file_dto import FileDto
@@ -50,11 +50,20 @@ class ClientStore(Store):
             return False
 
     # TODO: Determine best way to check if files exist or not for remove_files method
-    def __check_file_exists(self, name: str, files: List[str]) -> bool:
+    # def __check_file_exists(self, name: str, files: List[str]) -> bool:
+    #     """Check if a file has been published/exists or not."""
+    #     file_tuples = [(name, file) for file in files]
+    #     self._cursor.executemany(
+    #         "SELECT * FROM files WHERE client_name = (?) AND file_name = (?)", (name, file_tuples))
+    #     if (self._cursor.fetchone()):
+    #         return True
+    #     else:
+    #         return False
+
+    def __check_file_exists(self, file_name: str) -> bool:
         """Check if a file has been published/exists or not."""
-        file_tuples = [(name, file) for file in files]
-        self._cursor.executemany(
-            "SELECT * FROM files WHERE client_name = (?) AND file_name = (?)", (name, file_tuples))
+        self._cursor.execute(
+            "SELECT * FROM files WHERE file_name = (?)", (file_name, ))
         if (self._cursor.fetchone()):
             return True
         else:
@@ -73,8 +82,8 @@ class ClientStore(Store):
             else:
                 raise Exception(
                     f"name {clientDto.name} already exists in the database")
-        except Exception as e:
-            raise StoreException("error creating client", e.args)
+        except Exception as err:
+            raise StoreException("error creating client", err.args)
 
     def update_client(self, clientDto: ClientDto) -> None:
         """
@@ -90,8 +99,8 @@ class ClientStore(Store):
             else:
                 raise Exception(
                     f"name {clientDto.name} does not exist in the database")
-        except Exception as e:
-            raise StoreException("error updating client", e.args)
+        except Exception as err:
+            raise StoreException("error updating client", err.args)
 
     # TODO: Delete ALL client information including associated files
     def deregister_client(self, clientDto: ClientDto) -> None:
@@ -103,8 +112,8 @@ class ClientStore(Store):
         try:
             self._cursor.execute(
                 "DELETE FROM clients WHERE name = (?)", (clientDto.name,))
-        except Exception as e:
-            raise StoreException("error deleting client", e.args)
+        except Exception as err:
+            raise StoreException("error deleting client", err.args)
 
     def publish_files(self, fileDto: FileDto):
         """
@@ -121,8 +130,8 @@ class ClientStore(Store):
             else:
                 raise Exception(
                     f"name {fileDto.client_name} does not exist in the database")
-        except Exception as e:
-            raise StoreException("error inserting files", e.args)
+        except Exception as err:
+            raise StoreException("error inserting files", err.args)
 
     # TODO: Delete operation does not fail if files have already been removed
     def remove_files(self, fileDto: FileDto):
@@ -139,9 +148,9 @@ class ClientStore(Store):
                     "DELETE FROM files WHERE client_name = (?) AND file_name = (?)", file_tuples)
             else:
                 raise Exception(
-                    f"name {fileDto.client_name} does not exist in the database")
-        except Exception as e:
-            raise StoreException("error removing files", e.args)
+                    f"name {fileDto.client_name} is not registered/does not exist in the database")
+        except Exception as err:
+            raise StoreException("error removing files", err.args)
 
     # TODO: Fix formatting before returning and add docstring comment
     def retrieve_all(self) -> List[FileDto]:
@@ -150,20 +159,47 @@ class ClientStore(Store):
             self._cursor.execute(sql)
             files = self._cursor.fetchall()
             return files
-        except Exception as e:
-            raise StoreException("error retrieving clients", e.args)
+        except Exception as err:
+            raise StoreException("error retrieving clients", err.args)
 
-    # TODO: Fix formatting before returning and add docstring comment
-    def retrieve_info(self, name: str):
+    def retrieve_info(self, client_name: str, search_name: str) -> Tuple:
+        """
+        Retrives a client's information if it exists and is registered.
+        Implements `RETRIEVE-INFO` and returns None for `RETRIEVE-INFO` and 
+        StoreException for `RETRIEVE-ERROR` (Specification 2.3).
+        """
         try:
-            if (self.__check_client_exists(name)):
-                sql = "SELECT name, ip_address, tcp_socket, file_name FROM clients INNER JOIN files ON name = client_name WHERE name = (?)"
-                self._cursor.execute(sql, (name,))
-                files = self._cursor.fetchall()
-                return files
-        except Exception as e:
-            raise StoreException("error retrieving clients", e.args)
+            if (self.__check_client_exists(client_name)):
+                sql = "SELECT name, ip_address, tcp_socket FROM clients INNER JOIN files ON name = client_name WHERE name = (?)"
+                self._cursor.execute(sql, (search_name,))
+                client_info = self._cursor.fetchone()
+                self._cursor.execute(
+                    "SELECT file_name FROM files INNER JOIN clients ON client_name = name WHERE client_name = (?)", (search_name,))
+                file_info = self._cursor.fetchall()
+                files = [file[0] for file in file_info]
+                client_info += (files,)
+                return tuple(client_info)
+            else:
+                raise Exception(
+                    f"file name {client_name} is not registered/does not exist in the database")
+        except Exception as err:
+            raise StoreException(err.args)
 
-    # TODO: Implement search file based on Spec 2.3
-    def search_file(self):
-        pass
+    def search_file(self, client_name: str, file_name: str) -> List:
+        """
+        Searches for a specific file and responds with the associated client information.
+        Implements `SEARCH-FILE` and returns None for `SEARCH-FILE` and 
+        StoreException for `SEARCH-ERROR` (Specification 2.3).
+        """
+        try:
+            if (self.__check_client_exists(client_name)):
+                if (self.__check_file_exists(file_name)):
+                    sql = "SELECT name, ip_address, tcp_socket FROM files INNER JOIN clients ON client_name = name WHERE file_name = (?)"
+                    self._cursor.execute(sql, (file_name,))
+                    files = self._cursor.fetchall()
+                    return files
+                else:
+                    raise Exception(
+                        f"file name {file_name} does not exist in the database")
+        except Exception as err:
+            raise StoreException(err.args)
