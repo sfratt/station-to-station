@@ -18,8 +18,9 @@ if __name__ == "__main__":
             # client_store.delete_client(client)
             # client_store.publish_files(fileDto)
             # client_store.remove_files(fileDto)
-            print(client_store.retrieve_all())
-            # print(client_store.retrieve_info("test-user"))
+            # print(client_store.search_file("test-user", "file_g.txt"))
+            # print(client_store.retrieve_all())
+            print(client_store.retrieve_info("test-user-2", "test-user"))
             client_store.complete()
 
     except StoreException as e:
