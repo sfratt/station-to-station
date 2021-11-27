@@ -247,6 +247,7 @@ class Client:
             # Handle Response of Files
             self.print_log('Downloading...')
             chunk_dict = {}
+            stop_download_check = False
 
             while (True):
                 data = download_socket.recv(HEADER_SIZE).decode(FORMAT)
@@ -268,7 +269,13 @@ class Client:
 
                 if (method_call == 'file_end'):
                     total_chunk_num = body['CHUNK#']
-                    break
+                    stop_download_check = True
+
+                if (stop_download_check):
+                    total_chunk_set = set(range(1, total_chunk_num + 1))
+                    current_chunk_set = set(chunk_dict.keys())
+                    if (total_chunk_set.issubset(current_chunk_set)):
+                        break
             
             # Assemble File
             path = os.path.join('..\downloads', file_name)
