@@ -16,7 +16,6 @@ class Client:
         # gui_thread.daemon = True
         gui_thread.start()
         
-        self.server_addr = ('192.168.2.38', 9000) 
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -65,7 +64,7 @@ class Client:
             new_client_thread.daemon = True
             new_client_thread.start()
 
-    def stop_tcp_server(self):
+    def stop_client(self):
         self.print_log('Client is shutting down...')
         self.udp_socket.close()
         self.tcp_socket.close()
@@ -128,6 +127,11 @@ class Client:
             response = msg_lib.create_response(payload, 500)
             conn.send(response)
 
+    def connect_to_server(self, host, port):
+        self.server_addr = (host, port)
+        self.print_log('Connected to server {}:{}'.format(host, port))
+        # Enable all buttons
+
     def send_to_udp_server(self, request):
         self.udp_socket.sendto(request, self.server_addr)
 
@@ -150,8 +154,6 @@ class Client:
         }
 
         request = msg_lib.create_request('REGISTER', payload)
-        # register_thread = threading.Thread(target=self.send_to_udp_server, args=(request, ))
-        # register_thread.start()
         self.send_to_udp_server(request)
 
     def de_register(self, name):
@@ -173,8 +175,6 @@ class Client:
         }
 
         request = msg_lib.create_request('PUBLISH', payload)
-        # publish_thread = threading.Thread(target=self.send_to_udp_server, args=(request, ))
-        # publish_thread.start()
         self.send_to_udp_server(request)
 
     def remove(self, list: list[str]):
@@ -295,59 +295,59 @@ class Client:
 
     def gui(self):
         window = tk.Tk()
-        window.geometry("900x800")
+        window.geometry("1000x900")
         window.resizable(False, False)
 
         scroll = tk.Scrollbar(window)
 
-        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
+        self.log_text = tk.Text(window, height=51, width=124, state=DISABLED)
         self.log_text.place(x=0, y=75)
 
-        name_label = tk.Label(text="Name").place(x=0, y=0)
+        name_label = tk.Label(text="Name").place(x=0, y=2)
         name_entry = tk.Entry(window, width=15)
-        name_entry.place(x=80, y=0)
+        name_entry.place(x=80, y=2)
         
-        file_name_label = tk.Label(text="File name(s)").place(x=190, y=0)
+        file_name_label = tk.Label(text="File name(s)").place(x=190, y=2)
         file_name_entry = tk.Entry(window, width=80)
-        file_name_entry.place(x=270, y=0)
+        file_name_entry.place(x=270, y=2)
         
-        host_name_label = tk.Label(text="Host name").place(x=0, y=25)
+        host_name_label = tk.Label(text="Host name").place(x=0, y=27)
         host_name_entry = tk.Entry(window, width=15)
-        host_name_entry.place(x=80, y=25)
+        host_name_entry.place(x=80, y=27)
         
-        port_name_label = tk.Label(text="Port number").place(x=190, y=25)
+        port_name_label = tk.Label(text="Port number").place(x=190, y=27)
         port_name_entry = tk.Entry(window, width=15)
-        port_name_entry.place(x=270, y=25)
+        port_name_entry.place(x=270, y=27)
              
-        register_button = tk.Button(window, text="Register", command=lambda: self.register(name_entry.get()))
+        register_button = tk.Button(window, text="Register", width=10, command=lambda: self.register(name_entry.get().strip()))
         register_button.place(x=0, y=50)
 
-        degister_button = tk.Button(window, text="Deregister", command=self.de_register)
-        degister_button.place(x=55, y=50)
+        degister_button = tk.Button(window, text="Deregister", width=10, command=lambda: self.de_register(name_entry.get().strip()))
+        degister_button.place(x=85, y=50)
 
-        publish_button = tk.Button(window, text="Publish", command=self.register)
-        publish_button.place(x=120, y=50)
+        publish_button = tk.Button(window, text="Publish", width=10, command=lambda: self.publish(file_name.strip() for file_name in file_name_entry.get().split(',')))
+        publish_button.place(x=170, y=50)
 
-        remove_button = tk.Button(window, text="Remove", command=self.register)
-        remove_button.place(x=170, y=50)
+        remove_button = tk.Button(window, text="Remove", width=10, command=lambda: self.remove(file_name.strip() for file_name in file_name_entry.get().split(',')))
+        remove_button.place(x=255, y=50)
 
-        retrieveall_button = tk.Button(window, text="Retrieve-all", command=self.register)
-        retrieveall_button.place(x=225, y=50)
+        retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, command=lambda: self.retrieve_all())
+        retrieveall_button.place(x=340, y=50)
 
-        retrieveinfo_button = tk.Button(window, text="Retrieve-info", command=self.register)
-        retrieveinfo_button.place(x=295, y=50)
+        retrieveinfo_button = tk.Button(window, text="Retrieve-info", width=10, command=lambda: self.retrieve_info(name_entry.get().strip()))
+        retrieveinfo_button.place(x=425, y=50)
 
-        searchfile_button = tk.Button(window, text="Search-file", command=self.register)
-        searchfile_button.place(x=375, y=50)
+        searchfile_button = tk.Button(window, text="Search-file", width=10, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
+        searchfile_button.place(x=510, y=50)
 
-        download_button = tk.Button(window, text="Download", command=self.register)
-        download_button.place(x=443, y=50)
+        download_button = tk.Button(window, text="Download", width=10, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get().strip()), file_name_entry.get().strip()))
+        download_button.place(x=595, y=50)
 
-        updatecontact_button = tk.Button(window, text="Update-contact", command=self.register)
-        updatecontact_button.place(x=508, y=50)
+        updatecontact_button = tk.Button(window, text="Update-contact", width=15, command=lambda: self.update_contact(name_entry.get().strip()))
+        updatecontact_button.place(x=680, y=50)
 
-        connect_button = tk.Button(window, text="Connect to Server", command=self.register)
-        connect_button.place(x=602, y=50)
+        connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
+        connect_button.place(x=880, y=50)
 
         self.start_ui_lock.release()
 
@@ -406,7 +406,7 @@ def main():
         elif (choice == '0'):
             quit = True
 
-    client.stop_tcp_server()
+    client.stop_client()
     print('Exit Client Program')
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ class Server:
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         print('[{}] {}'.format(date_time, msg))
 
-    def start(self):
+    def start_server(self):
         self.print_log('Starting Server...')
         self.server_socket.bind((self.host, self.port))
         self.print_log('Server is listening on {}:{}'.format(
@@ -48,9 +48,9 @@ class Server:
                     self.print_log('ERROR: {}'.format(err))
 
         except KeyboardInterrupt:
-            self.stop()
+            self.stop_server()
 
-    def stop(self):
+    def stop_server(self):
         self.print_log('Server is shutting down...')
         self.server_socket.close()
 
@@ -272,7 +272,7 @@ class Server:
 def main():
     ip_address = socket.gethostbyname(socket.gethostname())
     server = Server(ip_address, 9000)
-    server.start()
+    server.start_server()
 
 
 if __name__ == "__main__":
