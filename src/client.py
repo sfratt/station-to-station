@@ -95,9 +95,6 @@ class Client:
                 while (True):
                     chunk = file.read(200)
 
-                    if (not chunk):
-                        break
-
                     payload = {
                         'RQ#': body['RQ#'],
                         'FILE_NAME': file_name,
@@ -105,15 +102,17 @@ class Client:
                         'TEXT': chunk
                     }
 
-                    if (len(chunk) < 200):
+                    if (len(chunk) < 200 or not chunk): # Check for EOF
                         self.print_log('Sending final chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE-END', payload)
+                        conn.send(response)
+                        break
+
                     else:
                         self.print_log('Sending chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE', payload)
-
-                    conn.send(response)
-                    chunk_num += 1
+                        conn.send(response)
+                        chunk_num += 1
             
             self.print_log('Download complete')
 
