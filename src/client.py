@@ -12,8 +12,7 @@ class Client:
         self.start_ui_lock = threading.Lock()
         
         self.start_ui_lock.acquire()
-        gui_thread = threading.Thread(target=self.gui, args=())
-        # gui_thread.daemon = True
+        gui_thread = threading.Thread(target=self.gui)
         gui_thread.start()
         
         self.rq_num = -1

@@ -1,5 +1,4 @@
-import socket
-import threading
+import socket, threading, sys, time
 from datetime import datetime
 
 from message import message as msg_lib
@@ -8,8 +7,6 @@ from data.client_store import ClientStore
 from data.store import StoreException
 from models.client_dto import ClientDto
 from models.file_dto import FileDto
-
-import time
 
 class Server:
 
@@ -33,22 +30,17 @@ class Server:
     def start_server(self):
         self.print_log('Starting Server...')
         self.server_socket.bind((self.host, self.port))
-        self.print_log('Server is listening on {}:{}'.format(
-            self.host, self.port))
+        self.print_log('Server is listening on {}:{}'.format(self.host, self.port))
 
-        try:
-            while (True):
-                try:
-                    request, client_addr = self.server_socket.recvfrom(BUFFER_SIZE)
-                    thread = threading.Thread(target=self.handle_request, args=(request, client_addr))
-                    thread.daemon = True
-                    thread.start()
+        while (True):
+            try:
+                request, client_addr = self.server_socket.recvfrom(BUFFER_SIZE)
+                new_request_thread = threading.Thread(target=self.handle_request, args=(request, client_addr))
+                new_request_thread.start()
+                new_request_thread.join()
 
-                except OSError as err:
-                    self.print_log('ERROR: {}'.format(err))
-
-        except KeyboardInterrupt:
-            self.stop_server()
+            except OSError as err:
+                self.print_log('ERROR: {}'.format(err))
 
     def stop_server(self):
         self.print_log('Server is shutting down...')
@@ -269,11 +261,23 @@ class Server:
                 }, 500)
 
 
+
 def main():
-    ip_address = socket.gethostbyname(socket.gethostname())
-    server = Server(ip_address, 9000)
     server.start_server()
 
-
 if __name__ == "__main__":
-    main()
+    ip_address = socket.gethostbyname(socket.gethostname())
+    server = Server(ip_address, 9000)
+
+    try:
+        thread = threading.Thread(target=main)
+        thread.daemon = True
+        thread.start()
+        while (True):
+            pass
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+            server.stop_server()
+            sys.exit()
