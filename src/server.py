@@ -118,17 +118,15 @@ class Server:
                     'REASON': '{}'.format(err)
                 }, 500)
     
-    # FIX
     def publish(self, data: dict, client_addr):
-        # client_dto = ClientDto(name = data['NAME'])
-
+        file_dto = FileDto(data['NAME'], data['LIST_OF_FILES'])
         # time.sleep(10) # Testing Timeout 
         
         with ClientStore() as db:
             try:
                 self.print_log('Publishing list of files to database')
-                # db.publish()
-                # db.complete()
+                db.publish_files(file_dto)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'PUBLISHED'
@@ -142,15 +140,14 @@ class Server:
                     'REASON': '{}'.format(err)
                 }, 500)
 
-    # FIX
     def remove(self, data: dict, client_addr):
-        # client_dto = ClientDto(name = data['NAME'])
+        file_dto = FileDto(data['NAME'], data['LIST_OF_FILES'])
         
         with ClientStore() as db:
             try:
                 self.print_log('Removing list of files from database')
-                # db.remove()
-                # db.complete()
+                db.remove_files(file_dto)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'REMOVED'
@@ -166,10 +163,12 @@ class Server:
 
     # FIX - Missing list of files
     def retrieve_all(self, data: dict, client_addr):
+        client_name = data['NAME']
+
         with ClientStore() as db:
             try:
                 self.print_log('Retrieving list of all clients from database')
-                all_clients = db.get_all_clients()
+                all_clients = db.retrieve_all(client_name)
                 db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
@@ -185,23 +184,22 @@ class Server:
                     'REASON': '{}'.format(err)
                 }, 500)
 
-    # FIX
     def retrieve_info(self, data: dict, client_addr):
-        name = data['NAME']
+        client_name = data['NAME']
+        search_name = data['SEARCH_NAME']
         
         with ClientStore() as db:
             try:
-                self.print_log('Retrieving list of files of client {} from database'.format(name))
-                # client = db.get_client(name)
-                # db.complete()
+                self.print_log('Retrieving info of client {} from database'.format(search_name))
+                client = db.retrieve_info(client_name, search_name)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'RETRIEVED-INFO',
-                    'NAME': '',
-                    'IP_ADDRESS': '',
-                    'TCP_SOCKET': '',
-                    'LIST_OF_FILES': []
-                    # 'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3], 'LIST_OF_FILES': []} for col in client]
+                    'NAME': client[0],
+                    'IP_ADDRESS': client[1],
+                    'TCP_SOCKET': client[2],
+                    'LIST_OF_FILES': client[3]
                 }, 200)
 
             except StoreException as err:
@@ -212,19 +210,19 @@ class Server:
                     'REASON': '{}'.format(err)
                 }, 500)
 
-    # FIX
     def search_file(self, data: dict, client_addr):
+        client_name = data['NAME']
         file_name = data['FILE_NAME']
         
         with ClientStore() as db:
             try:
                 self.print_log('Searching for file {} in database'.format(file_name))
-                clients = [] # db.find_file(file_name)
-                # db.complete()
+                clients = db.search_file(client_name, file_name)
+                db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'FILE-FOUND',
-                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3]} for col in clients]
+                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[2]} for col in clients]
                 }, 200)
 
             except StoreException as err:
