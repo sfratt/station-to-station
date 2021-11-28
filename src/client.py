@@ -5,13 +5,14 @@ import tkinter as tk
 from tkinter.constants import DISABLED, NORMAL
 
 from message import message as msg_lib
-from models.constants import ADDR, BUFFER_SIZE, FORMAT, HEADER_SIZE
+from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
+        self.start_ui_lock = threading.Lock()
         
-        gui_thread = threading.Thread(target=self.gui, args=())
-        #gui_thread.daemon = True
+        self.start_ui_lock.acquire()
+        gui_thread = threading.Thread(target=self.gui)
         gui_thread.start()
         
         self.rq_num = -1
@@ -22,13 +23,14 @@ class Client:
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
         self.get_tcp_port_num()
+        self.start_ui_lock.acquire()
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
-        
 
     def get_rq_num(self):
-        self.rq_num = (self.rq_num + 1) % 8
+        # self.rq_num = (self.rq_num + 1) % 8
+        self.rq_num += 1
         return self.rq_num
 
     def get_tcp_port_num(self):
@@ -36,8 +38,9 @@ class Client:
 
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
-        print('[{}] {}'.format(date_time, msg))
-        self.insert_log('[{}] {}'.format(date_time, msg))
+        log  = '[{}] {}'.format(date_time, msg)
+        self.insert_log(log)
+        print(log)
 
     def start_tcp_server(self):
         self.print_log('Starting Client...')
@@ -59,7 +62,7 @@ class Client:
             new_client_thread.daemon = True
             new_client_thread.start()
 
-    def stop_tcp_server(self):
+    def stop_client(self):
         self.print_log('Client is shutting down...')
         self.udp_socket.close()
         self.tcp_socket.close()
@@ -90,9 +93,6 @@ class Client:
                 while (True):
                     chunk = file.read(200)
 
-                    if (not chunk):
-                        break
-
                     payload = {
                         'RQ#': body['RQ#'],
                         'FILE_NAME': file_name,
@@ -100,15 +100,17 @@ class Client:
                         'TEXT': chunk
                     }
 
-                    if (len(chunk) < 200):
+                    if (len(chunk) < 200 or not chunk): # Check for EOF
                         self.print_log('Sending final chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE-END', payload)
+                        conn.send(response)
+                        break
+
                     else:
                         self.print_log('Sending chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE', payload)
-
-                    conn.send(response)
-                    chunk_num += 1
+                        conn.send(response)
+                        chunk_num += 1
             
             self.print_log('Download complete')
 
@@ -122,106 +124,131 @@ class Client:
             response = msg_lib.create_response(payload, 500)
             conn.send(response)
 
-    def send_to_udp_server(self, request):
-        self.udp_socket.sendto(request, ADDR)
+    def connect_to_server(self, host, port):
+        self.server_addr = (host, port)
+        self.print_log('Connected to server {}:{}'.format(host, port))
+        # TODO Enable all buttons
 
-        try:
-            response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
-            self.udp_socket.settimeout(3.0)
-            self.print_log('Server Response\n{}\n'.format(response.decode(FORMAT)))
-        
-        except socket.timeout:
-            self.print_log('Connection timeout. Request not received, send again')
+    def send_to_udp_server(self, current_rq_num: int, request: bytes):
+        self.udp_socket.sendto(request, self.server_addr)
+        self.udp_socket.settimeout(5)
+
+        for i in range(3):
+            try:
+                while (True):
+                    response = None
+                    response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
+                    response = response.decode(FORMAT)
+                    body = msg_lib.extract_body(response)
+
+                    if ('RQ#' in body and body['RQ#'] == current_rq_num):
+                        self.print_log('Server Response\n{}\n'.format(response))
+                        return
+
+            except socket.timeout:
+                self.print_log('Connection timeout. Sending again...')
+                self.udp_socket.sendto(request, self.server_addr)
+
+            except ConnectionError as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return
+
+        if response is None:
+            self.print_log('No response from the server')
 
     def register(self, name):
-        self.print_log('Sending register request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'REGISTER',
-            'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
+            'RQ#': rq_num, # Do circular cycle of numbers 0 - 7
             'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
             'IP_ADDRESS': self.host,
-            'UDP_SOCKET': None, # UDP socket number it can be reached at by the server
+            'UDP_SOCKET': None, # UDP socket number it can be reached at by the server # TODO Remove this field
             'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
         }
 
+        self.print_log('Sending register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REGISTER', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def de_register(self, name):
-        self.print_log('Sending de-register request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'DE-REGISTER',
-            'RQ#': self.get_rq_num(),
+            'RQ#': rq_num,
             'NAME': name, 
         }
 
+        self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('DE-REGISTER', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
-    def publish(self, list: list[str]):
-        self.print_log('Sending publish request...')
+    def publish(self, list: list):
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'PUBLISH',
-            'RQ#': self.get_rq_num(),
+            'RQ#': rq_num,
             'NAME': socket.gethostname(),
-            'LIST_OF_FILES': list 
+            'LIST_OF_FILES': list
         }
 
+        self.print_log('Sending publish request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('PUBLISH', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
-    def remove(self, list: list[str]):
-        self.print_log('Sending remove request...')
+    def remove(self, list: list):
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'REMOVE',
-            'RQ#':  self.get_rq_num(),
-            'NAME': socket.gethostname(),
+            'RQ#':  rq_num,
+            'NAME': socket.gethostname(), #TODO Need to get registered name
             'LIST_OF_FILES': list 
         }
 
+        self.print_log('Sending remove request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REMOVE', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
     
     def retrieve_all(self):
-        self.print_log('Sending retrieve all request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'RETRIEVE-ALL',
-            'RQ#':  self.get_rq_num()
+            'RQ#':  rq_num
         }
 
+        self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-ALL', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def retrieve_info(self, name):
-        self.print_log('Sending retrieve info request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'RETRIEVE-INFO',
-            'RQ#':  self.get_rq_num(),
+            'RQ#':  rq_num,
             'NAME': name
         }
 
+        self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-INFO', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def search_file(self, file_name):
-        self.print_log('Sending search file request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'ACTION': 'SEARCH-FILE',
-            'RQ#':  self.get_rq_num(),
+            'RQ#':  rq_num,
             'FILE_NAME': file_name
         }
 
+        self.print_log('Sending search file request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('SEARCH-FILE', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
-    def update_contact(self, ip_address: str, udp_socket: int, tcp_socket: int):
-        pass
-    
-    def insert_log(self,msg):
-        self.log_text.configure(state=NORMAL)
-        self.log_text.insert(tk.END, msg + "\n")
-        self.log_text.configure(state=DISABLED)
-        
+    def update_contact(self, name: str):
+        rq_num = self.get_rq_num()
+        payload = {
+            'RQ#': rq_num,
+            'NAME': name,
+            'IP_ADDRESS': self.host,
+            'TCP_SOCKET': self.tcp_port
+        }
+
+        self.print_log('Sending update request RQ# {}...'.format(rq_num))
+        request = msg_lib.create_request('UPDATE-CONTACT', payload)
+        self.send_to_udp_server(rq_num, request)
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -242,6 +269,7 @@ class Client:
             # Handle Response of Files
             self.print_log('Downloading...')
             chunk_dict = {}
+            stop_download_check = False
 
             while (True):
                 data = download_socket.recv(HEADER_SIZE).decode(FORMAT)
@@ -263,7 +291,13 @@ class Client:
 
                 if (method_call == 'file_end'):
                     total_chunk_num = body['CHUNK#']
-                    break
+                    stop_download_check = True
+
+                if (stop_download_check):
+                    total_chunk_set = set(range(1, total_chunk_num + 1))
+                    current_chunk_set = set(chunk_dict.keys())
+                    if (total_chunk_set.issubset(current_chunk_set)):
+                        break
             
             # Assemble File
             path = os.path.join('..\downloads', file_name)
@@ -281,58 +315,72 @@ class Client:
         finally:
             download_socket.close()
             self.print_log('Connection {}:{} closed'.format(host, port))
-            
+
+    def insert_log(self,msg):
+        self.log_text.configure(state=NORMAL)
+        self.log_text.insert(tk.END, msg + "\n")
+        self.log_text.configure(state=DISABLED)
+
     def gui(self):
         window = tk.Tk()
-        window.geometry("900x800")
+        window.geometry("1000x900")
         window.resizable(False, False)
-
-        name_label = tk.Label(text="Name").place(x=0, y=0)
-        name_entry = tk.Entry(window, width=15)
-        name_entry.place(x=80, y=0)
-        
-        file_name_label = tk.Label(text="File name(s)").place(x=190, y=0)
-        file_name_entry = tk.Entry(window, width=80)
-        file_name_entry.place(x=270, y=0)
-        
-        host_name_label = tk.Label(text="Host name").place(x=0, y=25)
-        host_name_entry = tk.Entry(window, width=15)
-        host_name_entry.place(x=80, y=25)
-        
-        port_name_label = tk.Label(text="Port number").place(x=190, y=25)
-        port_name_entry = tk.Entry(window, width=15)
-        port_name_entry.place(x=270, y=25)
-             
-
-        register_button = tk.Button(window, text="Register", command=lambda: self.register(name_entry.get()))
-        register_button.place(x=0, y=50)
-        degister_button = tk.Button(window, text="Deregister", command=self.de_register)
-        degister_button.place(x=55, y=50)
-        publish_button = tk.Button(window, text="Publish", command=self.register)
-        publish_button.place(x=120, y=50)
-        remove_button = tk.Button(window, text="Remove", command=self.register)
-        remove_button.place(x=170, y=50)
-        retrieveall_button = tk.Button(window, text="Retrieve-all", command=self.register)
-        retrieveall_button.place(x=225, y=50)
-        retrieveinfo_button = tk.Button(window, text="Retrieve-info", command=self.register)
-        retrieveinfo_button.place(x=295, y=50)
-        searchfile_button = tk.Button(window, text="Search-file", command=self.register)
-        searchfile_button.place(x=375, y=50)
-        download_button = tk.Button(window, text="Download", command=self.register)
-        download_button.place(x=443, y=50)
-        updatecontact_button = tk.Button(window, text="Update-contact", command=self.register)
-        updatecontact_button.place(x=508, y=50)
-        connect_button = tk.Button(window, text="Connect to Server", command=self.register)
-        connect_button.place(x=602, y=50)
-        
 
         scroll = tk.Scrollbar(window)
 
-        self.log_text = tk.Text(window, height=46, width=111, state=DISABLED)
+        self.log_text = tk.Text(window, height=51, width=124, state=DISABLED)
         self.log_text.place(x=0, y=75)
+
+        name_label = tk.Label(text="Name").place(x=0, y=2)
+        name_entry = tk.Entry(window, width=15)
+        name_entry.place(x=80, y=2)
         
+        file_name_label = tk.Label(text="File name(s)").place(x=190, y=2)
+        file_name_entry = tk.Entry(window, width=80)
+        file_name_entry.place(x=270, y=2)
         
-        # Need to start running the Client() when the UI starts
+        host_name_label = tk.Label(text="Host name").place(x=0, y=27)
+        host_name_entry = tk.Entry(window, width=15)
+        host_name_entry.place(x=80, y=27)
+        
+        port_name_label = tk.Label(text="Port number").place(x=190, y=27)
+        port_name_entry = tk.Entry(window, width=15)
+        port_name_entry.place(x=270, y=27)
+        port_name_entry.insert(0, '9000')
+             
+        register_button = tk.Button(window, text="Register", width=10, command=lambda: self.register(name_entry.get().strip()))
+        register_button.place(x=0, y=50)
+
+        degister_button = tk.Button(window, text="Deregister", width=10, command=lambda: self.de_register(name_entry.get().strip()))
+        degister_button.place(x=85, y=50)
+
+        # TODO Need to find a better way to get list of file names currently too slow app freezes
+        publish_button = tk.Button(window, text="Publish", width=10, command=lambda: self.publish(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        publish_button.place(x=170, y=50)
+
+        # TODO Need to find a better way to get list of file names currently too slow app freezes
+        remove_button = tk.Button(window, text="Remove", width=10, command=lambda: self.remove(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        remove_button.place(x=255, y=50)
+
+        retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, command=lambda: self.retrieve_all())
+        retrieveall_button.place(x=340, y=50)
+
+        retrieveinfo_button = tk.Button(window, text="Retrieve-info", width=10, command=lambda: self.retrieve_info(name_entry.get().strip()))
+        retrieveinfo_button.place(x=425, y=50)
+
+        searchfile_button = tk.Button(window, text="Search-file", width=10, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
+        searchfile_button.place(x=510, y=50)
+
+        download_button = tk.Button(window, text="Download", width=10, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get().strip()), file_name_entry.get().strip()))
+        download_button.place(x=595, y=50)
+
+        updatecontact_button = tk.Button(window, text="Update-contact", width=15, command=lambda: self.update_contact(name_entry.get().strip()))
+        updatecontact_button.place(x=680, y=50)
+
+        connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
+        connect_button.place(x=880, y=50)
+
+        self.start_ui_lock.release()
 
         window.mainloop()
 
@@ -342,7 +390,7 @@ class Client:
 
 # Get file names to client wants to share to public
 def get_files():
-    return os.listdir('./shared_folder')
+    return os.listdir('..\shared_folder')
 
 # Temp cmd line menu
 def print_options():
@@ -363,9 +411,35 @@ Press 0 to close client\n'''
 
 def main():
     client = Client()
-    
-    #client.stop_tcp_server()
-    #print('Exit Client Program')
+    quit = False
+
+    while(not quit):
+        choice = input(print_options())
+
+        if(choice == '1'):
+            client.register('TEST-HOST')
+        elif(choice == '2'):
+            client.de_register('TEST-HOST')
+        elif(choice == '3'):
+            client.publish(get_files())
+        elif(choice == '4'):
+            client.remove(['test.txt'])
+        elif(choice == '5'):
+            client.retrieve_all()
+        elif(choice == '6'):
+            client.retrieve_info('TEST-HOST')
+        elif(choice == '7'):
+            client.search_file('test1.txt')
+        elif(choice == '8'):
+            client.update_contact('TEST-HOST')
+        elif(choice == '9'):
+            client.download('192.168.2.38', 19862, 'test1.txt') # For testing, need to hard code host & port
+        elif (choice == '0'):
+            quit = True
+
+    client.stop_client()
+    print('Exit Client Program')
 
 if __name__ == "__main__":
-   main()
+   # main()
+    Client()
