@@ -27,7 +27,6 @@ class Client:
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
         client_listening_thread.daemon = True
         client_listening_thread.start()
-        
 
     def get_rq_num(self):
         # self.rq_num = (self.rq_num + 1) % 8
@@ -128,104 +127,124 @@ class Client:
     def connect_to_server(self, host, port):
         self.server_addr = (host, port)
         self.print_log('Connected to server {}:{}'.format(host, port))
-        # Enable all buttons
+        # TODO Enable all buttons
 
-    def send_to_udp_server(self, request):
+    def send_to_udp_server(self, current_rq_num: int, request: bytes):
         self.udp_socket.sendto(request, self.server_addr)
+        self.udp_socket.settimeout(5)
 
-        try:
-            response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
-            self.udp_socket.settimeout(5.0)
-            self.print_log('Server Response\n{}\n'.format(response.decode(FORMAT)))
-        
-        except socket.timeout:
-            self.print_log('Connection timeout. Request not received, send again')
+        for i in range(3):
+            try:
+                while (True):
+                    response = None
+                    response, addr = self.udp_socket.recvfrom(BUFFER_SIZE)
+                    response = response.decode(FORMAT)
+                    body = msg_lib.extract_body(response)
+
+                    if ('RQ#' in body and body['RQ#'] == current_rq_num):
+                        self.print_log('Server Response\n{}\n'.format(response))
+                        return
+
+            except socket.timeout:
+                self.print_log('Connection timeout. Sending again...')
+                self.udp_socket.sendto(request, self.server_addr)
+
+        if response is None:
+            self.print_log('No response from the server')
 
     def register(self, name):
-        self.print_log('Sending register request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#': self.get_rq_num(), # Do circular cycle of numbers 0 - 7
+            'RQ#': rq_num, # Do circular cycle of numbers 0 - 7
             'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
             'IP_ADDRESS': self.host,
-            'UDP_SOCKET': None, # UDP socket number it can be reached at by the server
+            'UDP_SOCKET': None, # UDP socket number it can be reached at by the server # TODO Remove this field
             'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
         }
 
+        self.print_log('Sending register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REGISTER', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def de_register(self, name):
-        self.print_log('Sending de-register request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#': self.get_rq_num(),
+            'RQ#': rq_num,
             'NAME': name, 
         }
 
+        self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('DE-REGISTER', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
-    def publish(self, list: list[str]):
-        self.print_log('Sending publish request...')
+    def publish(self, list: list):
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#': self.get_rq_num(),
+            'RQ#': rq_num,
             'NAME': socket.gethostname(),
-            'LIST_OF_FILES': list 
+            'LIST_OF_FILES': list
         }
 
+        self.print_log('Sending publish request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('PUBLISH', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
-    def remove(self, list: list[str]):
-        self.print_log('Sending remove request...')
+    def remove(self, list: list):
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#':  self.get_rq_num(),
-            'NAME': socket.gethostname(),
+            'RQ#':  rq_num,
+            'NAME': socket.gethostname(), #TODO Need to get registered name
             'LIST_OF_FILES': list 
         }
 
+        self.print_log('Sending remove request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REMOVE', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
     
     def retrieve_all(self):
-        self.print_log('Sending retrieve all request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#':  self.get_rq_num()
+            'RQ#':  rq_num
         }
 
+        self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-ALL', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def retrieve_info(self, name):
-        self.print_log('Sending retrieve info request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#':  self.get_rq_num(),
+            'RQ#':  rq_num,
             'NAME': name
         }
 
+        self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-INFO', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def search_file(self, file_name):
-        self.print_log('Sending search file request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#':  self.get_rq_num(),
+            'RQ#':  rq_num,
             'FILE_NAME': file_name
         }
 
+        self.print_log('Sending search file request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('SEARCH-FILE', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def update_contact(self, name: str):
-        self.print_log('Sending update request...')
+        rq_num = self.get_rq_num()
         payload = {
-            'RQ#': self.get_rq_num(),
+            'RQ#': rq_num,
             'NAME': name,
             'IP_ADDRESS': self.host,
             'TCP_SOCKET': self.tcp_port
         }
 
+        self.print_log('Sending update request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('UPDATE-CONTACT', payload)
-        self.send_to_udp_server(request)
+        self.send_to_udp_server(rq_num, request)
 
     def download(self, host, port, file_name):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -323,6 +342,7 @@ class Client:
         port_name_label = tk.Label(text="Port number").place(x=190, y=27)
         port_name_entry = tk.Entry(window, width=15)
         port_name_entry.place(x=270, y=27)
+        port_name_entry.insert(0, '9000')
              
         register_button = tk.Button(window, text="Register", width=10, command=lambda: self.register(name_entry.get().strip()))
         register_button.place(x=0, y=50)
@@ -330,10 +350,12 @@ class Client:
         degister_button = tk.Button(window, text="Deregister", width=10, command=lambda: self.de_register(name_entry.get().strip()))
         degister_button.place(x=85, y=50)
 
-        publish_button = tk.Button(window, text="Publish", width=10, command=lambda: self.publish(file_name.strip() for file_name in file_name_entry.get().split(',')))
+        # TODO Need to find a better way to get list of file names currently too slow app freezes
+        publish_button = tk.Button(window, text="Publish", width=10, command=lambda: self.publish(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
         publish_button.place(x=170, y=50)
 
-        remove_button = tk.Button(window, text="Remove", width=10, command=lambda: self.remove(file_name.strip() for file_name in file_name_entry.get().split(',')))
+        # TODO Need to find a better way to get list of file names currently too slow app freezes
+        remove_button = tk.Button(window, text="Remove", width=10, command=lambda: self.remove(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
         remove_button.place(x=255, y=50)
 
         retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, command=lambda: self.retrieve_all())

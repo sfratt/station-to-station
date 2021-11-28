@@ -63,11 +63,11 @@ class Server:
             response = self.invalid_request()
 
         try:
-            self.print_log('Responding to request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
             self.server_socket.sendto(response, client_addr)
+            self.print_log('Responding to request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
 
         except TypeError:
-            self.print_log('Ignoring request from {}'.format(client_addr[0]))
+            self.print_log('Ignoring request RQ# {} from {}'.format(body['RQ#'], client_addr[0]))
             pass
 
     def invalid_request(self):
