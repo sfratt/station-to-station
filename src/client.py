@@ -149,6 +149,10 @@ class Client:
                 self.print_log('Connection timeout. Sending again...')
                 self.udp_socket.sendto(request, self.server_addr)
 
+            except ConnectionError as err:
+                self.print_log('[ERROR] {}'.format(err))
+                return
+
         if response is None:
             self.print_log('No response from the server')
 
