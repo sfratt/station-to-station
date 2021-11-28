@@ -185,7 +185,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
-            'NAME': socket.gethostname(),
+            'NAME': socket.gethostname(), # TODO Need to get registered name
             'LIST_OF_FILES': list
         }
 
@@ -197,7 +197,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), #TODO Need to get registered name
+            'NAME': socket.gethostname(), # TODO Need to get registered name
             'LIST_OF_FILES': list 
         }
 
@@ -208,7 +208,8 @@ class Client:
     def retrieve_all(self):
         rq_num = self.get_rq_num()
         payload = {
-            'RQ#':  rq_num
+            'RQ#':  rq_num,
+            'NAME': socket.gethostname(), # TODO Need to get registered name
         }
 
         self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
@@ -219,7 +220,8 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': name
+            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'SEARCH_NAME': name
         }
 
         self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
@@ -230,6 +232,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
+            'NAME': socket.gethostname(), # TODO Need to get registered name
             'FILE_NAME': file_name
         }
 
