@@ -37,8 +37,8 @@ class ClientStore(Store):
 
             self._cursor.execute(clients_sql)
             self._cursor.execute(files_sql)
-        except Exception as e:
-            raise StoreException('error creating tables', e.args)
+        except Exception as err:
+            raise StoreException(err)
 
     def __check_client_exists(self, client_name: str) -> bool:
         """Check if a client is registered/exists or not."""
@@ -83,7 +83,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_dto.name} already exists in the database")
         except Exception as err:
-            raise StoreException("error creating client", err.args)
+            raise StoreException(err)
 
     def update_client(self, client_dto: ClientDto) -> None:
         """
@@ -100,7 +100,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_dto.name} does not exist in the database")
         except Exception as err:
-            raise StoreException("error updating client", err.args)
+            raise StoreException(err)
 
     # TODO: Make sure client cannot request deregistration of another client that is not itself
     # Check IP and compare to DTO information being sent up, or get client info first and check IP
@@ -121,7 +121,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_dto.name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error deleting client", err.args)
+            raise StoreException(err)
 
     def publish_files(self, file_dto: FileDto) -> None:
         """
@@ -139,7 +139,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {file_dto.client_name} does not exist in the database")
         except Exception as err:
-            raise StoreException("error inserting files", err.args)
+            raise StoreException(err)
 
     # TODO: Delete operation does not fail if files have already been removed
     def remove_files(self, file_dto: FileDto) -> None:
@@ -158,7 +158,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {file_dto.client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error removing files", err.args)
+            raise StoreException(err)
 
     # TODO: Fix formatting before returning and add docstring comment
     def retrieve_all(self, client_name: str) -> List:
@@ -177,7 +177,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error retrieving clients", err.args)
+            raise StoreException(err)
 
     def retrieve_info(self, client_name: str, search_name: str) -> Tuple:
         """
@@ -200,7 +200,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException(err.args)
+            raise StoreException(err)
 
     def search_file(self, client_name: str, file_name: str) -> List:
         """
@@ -219,4 +219,4 @@ class ClientStore(Store):
                     raise Exception(
                         f"file name {file_name} does not exist in the database")
         except Exception as err:
-            raise StoreException(err.args)
+            raise StoreException(err)
