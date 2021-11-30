@@ -1,5 +1,6 @@
 import socket, threading, sys, time
 from datetime import datetime
+from collections import defaultdict
 
 from message import message as msg_lib
 from models.constants import BUFFER_SIZE, FORMAT
@@ -15,13 +16,14 @@ class Server:
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP Socket
         self.socket_lock = threading.Lock()
+        self.clients_rq_num_dict = defaultdict(list)
 
         with ClientStore() as db:
-            try: # FIX DONT DO THIS
+            try:
                 db.create_tables()
                 db.complete()
             except:
-                pass
+                pass # DB already created, do nothing
 
     def print_log(self, msg: str):
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
@@ -56,6 +58,14 @@ class Server:
         body = msg_lib.extract_body(request)
 
         try:
+            # Check for duplicate requests and ignore
+            if (body['RQ#'] in self.clients_rq_num_dict[f'{client_addr[0]}:{client_addr[1]}']):
+                self.print_log('Request RQ# {} already received from {}, ignoring request...'.format(body['RQ#'], client_addr[0]))
+                return
+
+            # Save in memory all clients RQ#
+            self.clients_rq_num_dict[f'{client_addr[0]}:{client_addr[1]}'].append(body['RQ#']) # TODO Change key to only ip address (maybe???)
+
             method_call = msg_lib.extract_method(request)
             response = getattr(self, method_call)(body, client_addr)
         
