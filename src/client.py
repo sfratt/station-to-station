@@ -128,6 +128,7 @@ class Client:
         self.server_addr = (host, port)
         self.print_log('Connected to server {}:{}'.format(host, port))
         # TODO Enable all buttons
+        self.button_toggle("server")
 
     def send_to_udp_server(self, current_rq_num: int, request: bytes):
         self.udp_socket.sendto(request, self.server_addr)
@@ -157,6 +158,7 @@ class Client:
             self.print_log('No response from the server')
 
     def register(self, name):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num, # Do circular cycle of numbers 0 - 7
@@ -169,8 +171,10 @@ class Client:
         self.print_log('Sending register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REGISTER', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def de_register(self, name):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
@@ -180,8 +184,10 @@ class Client:
         self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('DE-REGISTER', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def publish(self, list: list):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
@@ -192,8 +198,10 @@ class Client:
         self.print_log('Sending publish request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('PUBLISH', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def remove(self, list: list):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
@@ -204,8 +212,10 @@ class Client:
         self.print_log('Sending remove request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REMOVE', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
     
     def retrieve_all(self):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
@@ -215,8 +225,10 @@ class Client:
         self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-ALL', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def retrieve_info(self, name):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
@@ -227,8 +239,10 @@ class Client:
         self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-INFO', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def search_file(self, file_name):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
@@ -239,8 +253,10 @@ class Client:
         self.print_log('Sending search file request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('SEARCH-FILE', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def update_contact(self, name: str):
+        self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
@@ -252,8 +268,10 @@ class Client:
         self.print_log('Sending update request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('UPDATE-CONTACT', payload)
         self.send_to_udp_server(rq_num, request)
+        self.button_toggle("enable")
 
     def download(self, host, port, file_name):
+        self.button_toggle("disable")
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
 
@@ -318,11 +336,40 @@ class Client:
         finally:
             download_socket.close()
             self.print_log('Connection {}:{} closed'.format(host, port))
+            self.button_toggle("enable")
 
     def insert_log(self,msg):
         self.log_text.configure(state=NORMAL)
         self.log_text.insert(tk.END, msg + "\n")
         self.log_text.configure(state=DISABLED)
+        
+    def button_toggle(self, button_name):
+        if button_name == "server":
+            self.register_button.config(state=NORMAL)
+            self.degister_button.config(state=NORMAL)
+            self.updatecontact_button.config(state=NORMAL)
+        elif button_name == "disable":
+            self.register_button.config(state=DISABLED)
+            self.degister_button.config(state=DISABLED)
+            self.publish_button.config(state=DISABLED)
+            self.remove_button.config(state=DISABLED)
+            self.retrieveall_button.config(state=DISABLED)
+            self.retrieveinfo_button.config(state=DISABLED)
+            self.searchfile_button.config(state=DISABLED)
+            self.download_button.config(state=DISABLED)
+            self.updatecontact_button.config(state=DISABLED)
+            self.connect_button.config(state=DISABLED)
+        elif button_name == "enable":
+            self.register_button.config(state=NORMAL)
+            self.degister_button.config(state=NORMAL)
+            self.publish_button.config(state=NORMAL)
+            self.remove_button.config(state=NORMAL)
+            self.retrieveall_button.config(state=NORMAL)
+            self.retrieveinfo_button.config(state=NORMAL)
+            self.searchfile_button.config(state=NORMAL)
+            self.download_button.config(state=NORMAL)
+            self.updatecontact_button.config(state=NORMAL)
+            self.connect_button.config(state=NORMAL)
 
     def gui(self):
         window = tk.Tk()
@@ -351,37 +398,37 @@ class Client:
         port_name_entry.place(x=270, y=27)
         port_name_entry.insert(0, '9000')
              
-        register_button = tk.Button(window, text="Register", width=10, command=lambda: self.register(name_entry.get().strip()))
-        register_button.place(x=0, y=50)
+        self.register_button = tk.Button(window, text="Register", width=10, state = DISABLED, command=lambda: self.register(name_entry.get().strip()))
+        self.register_button.place(x=0, y=50)
 
-        degister_button = tk.Button(window, text="Deregister", width=10, command=lambda: self.de_register(name_entry.get().strip()))
-        degister_button.place(x=85, y=50)
-
-        # TODO Need to find a better way to get list of file names currently too slow app freezes
-        publish_button = tk.Button(window, text="Publish", width=10, command=lambda: self.publish(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
-        publish_button.place(x=170, y=50)
+        self.degister_button = tk.Button(window, text="Deregister", width=10, state = DISABLED, command=lambda: self.de_register(name_entry.get().strip()))
+        self.degister_button.place(x=85, y=50)
 
         # TODO Need to find a better way to get list of file names currently too slow app freezes
-        remove_button = tk.Button(window, text="Remove", width=10, command=lambda: self.remove(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
-        remove_button.place(x=255, y=50)
+        self.publish_button = tk.Button(window, text="Publish", width=10, state = DISABLED, command=lambda: self.publish(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        self.publish_button.place(x=170, y=50)
 
-        retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, command=lambda: self.retrieve_all())
-        retrieveall_button.place(x=340, y=50)
+        # TODO Need to find a better way to get list of file names currently too slow app freezes
+        self.remove_button = tk.Button(window, text="Remove", width=10, state = DISABLED, command=lambda: self.remove(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        self.remove_button.place(x=255, y=50)
 
-        retrieveinfo_button = tk.Button(window, text="Retrieve-info", width=10, command=lambda: self.retrieve_info(name_entry.get().strip()))
-        retrieveinfo_button.place(x=425, y=50)
+        self.retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, state = DISABLED, command=lambda: self.retrieve_all())
+        self.retrieveall_button.place(x=340, y=50)
 
-        searchfile_button = tk.Button(window, text="Search-file", width=10, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
-        searchfile_button.place(x=510, y=50)
+        self.retrieveinfo_button = tk.Button(window, text="Retrieve-info", width=10, state = DISABLED, command=lambda: self.retrieve_info(name_entry.get().strip()))
+        self.retrieveinfo_button.place(x=425, y=50)
 
-        download_button = tk.Button(window, text="Download", width=10, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get().strip()), file_name_entry.get().strip()))
-        download_button.place(x=595, y=50)
+        self.searchfile_button = tk.Button(window, text="Search-file", width=10, state = DISABLED, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
+        self.searchfile_button.place(x=510, y=50)
 
-        updatecontact_button = tk.Button(window, text="Update-contact", width=15, command=lambda: self.update_contact(name_entry.get().strip()))
-        updatecontact_button.place(x=680, y=50)
+        self.download_button = tk.Button(window, text="Download", width=10, state = DISABLED, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get().strip()), file_name_entry.get().strip()))
+        self.download_button.place(x=595, y=50)
 
-        connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
-        connect_button.place(x=880, y=50)
+        self.updatecontact_button = tk.Button(window, text="Update-contact", width=15, state = DISABLED, command=lambda: self.update_contact(name_entry.get().strip()))
+        self.updatecontact_button.place(x=680, y=50)
+
+        self.connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
+        self.connect_button.place(x=880, y=50)
 
         self.start_ui_lock.release()
 
