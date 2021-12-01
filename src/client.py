@@ -15,7 +15,7 @@ class Client:
         gui_thread = threading.Thread(target=self.gui)
         gui_thread.start()
         
-        self.client_name = None
+        self.client_name = ''
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -145,7 +145,12 @@ class Client:
 
                     if ('RQ#' in body and body['RQ#'] == current_rq_num):
                         self.print_log('Server Response\n{}\n'.format(response))
+                        if('STATUS' in body):
+                            if (body['STATUS'] == 'REGISTER-DENIED' or body['STATUS'] == 'DE-REGISTERED' or body['STATUS'] == 'UPDATE-DENIED'):
+                                self.client_name = ''
+                        
                         self.button_toggle("enable")
+                        self.display_client_name()
                         return
 
             except socket.timeout:
@@ -181,7 +186,7 @@ class Client:
         register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
         register_thread.start()
 
-    def de_register(self, name):
+    def de_register(self, name: str):
         if name == "":
             self.print_log("Name cannot be empty")
             return
@@ -382,6 +387,9 @@ class Client:
             self.print_log('Connection {}:{} closed'.format(host, port))
             self.button_toggle("enable")
 
+    def display_client_name(self):
+        self.client_name_label.config(text="Client: {}".format(self.client_name))
+
     def insert_log(self,msg):
         self.log_text.configure(state=NORMAL)
         self.log_text.insert(tk.END, msg + "\n")
@@ -424,6 +432,9 @@ class Client:
 
         self.log_text = tk.Text(window, height=51, width=124, state=DISABLED)
         self.log_text.place(x=0, y=75)
+
+        self.client_name_label = tk.Label(text="Client: ")
+        self.client_name_label.place(x=800, y=2)
 
         name_label = tk.Label(text="Name").place(x=0, y=2)
         name_entry = tk.Entry(window, width=15)
