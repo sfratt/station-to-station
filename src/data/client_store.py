@@ -193,7 +193,10 @@ class ClientStore(Store):
                 self._cursor.execute(
                     "SELECT file_name FROM files INNER JOIN clients ON client_name = name WHERE client_name = (?)", (search_name,))
                 file_info = self._cursor.fetchall()
-                files = [file[0] for file in file_info]
+                if (len(file_info) > 0):
+                    files = [file[0] for file in file_info]
+                else:
+                    files = []
                 client_info += (files,)
                 return tuple(client_info)
             else:
@@ -218,5 +221,8 @@ class ClientStore(Store):
                 else:
                     raise Exception(
                         f"file name {file_name} does not exist in the database")
+            else:
+                raise Exception(
+                    f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
             raise StoreException(err)
