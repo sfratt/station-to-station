@@ -204,17 +204,18 @@ class Client:
         de_register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
         de_register_thread.start()
 
-    def publish(self, list: list):
-        if not list:
-            self.print_log("List cannot be empty")
+    def publish(self, file_names: str):
+        if file_names == '':
+            self.print_log("File name(s) cannot be empty")
             return
         
         self.button_toggle("disable")
+        files = list(file_name.strip() for file_name in file_names.split(','))
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
             'NAME': self.client_name,
-            'LIST_OF_FILES': list
+            'LIST_OF_FILES': files
         }
 
         self.print_log('Sending publish request RQ# {}...'.format(rq_num))
@@ -223,17 +224,18 @@ class Client:
         publish_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
         publish_thread.start()
 
-    def remove(self, list: list):
-        if not list:
-            self.print_log("List cannot be empty")
+    def remove(self, file_names: str):
+        if file_names == '':
+            self.print_log("File name(s) cannot be empty")
             return
         
         self.button_toggle("disable")
+        files = list(file_name.strip() for file_name in file_names.split(','))
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
             'NAME': self.client_name,
-            'LIST_OF_FILES': list 
+            'LIST_OF_FILES': files 
         }
 
         self.print_log('Sending remove request RQ# {}...'.format(rq_num))
@@ -277,7 +279,7 @@ class Client:
 
     def search_file(self, file_name: str):
         if file_name == "":
-            self.print_log("Name cannot be empty")
+            self.print_log("File name cannot be empty")
             return
         
         self.button_toggle("disable")
@@ -425,12 +427,12 @@ class Client:
 
     def gui(self):
         window = tk.Tk()
-        window.geometry("1000x900")
+        window.geometry("1200x900")
         window.resizable(False, False)
 
         scroll = tk.Scrollbar(window)
 
-        self.log_text = tk.Text(window, height=51, width=124, state=DISABLED)
+        self.log_text = tk.Text(window, height=51, width=149, state=DISABLED)
         self.log_text.place(x=0, y=75)
 
         self.client_name_label = tk.Label(text="Client: ")
@@ -459,12 +461,10 @@ class Client:
         self.degister_button = tk.Button(window, text="Deregister", width=10, state = DISABLED, command=lambda: self.de_register(name_entry.get().strip()))
         self.degister_button.place(x=85, y=50)
 
-        # TODO Need to find a better way to get list of file names currently too slow app freezes
-        self.publish_button = tk.Button(window, text="Publish", width=10, state = DISABLED, command=lambda: self.publish(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        self.publish_button = tk.Button(window, text="Publish", width=10, state = DISABLED, command=lambda: self.publish(file_name_entry.get().strip()))
         self.publish_button.place(x=170, y=50)
 
-        # TODO Need to find a better way to get list of file names currently too slow app freezes
-        self.remove_button = tk.Button(window, text="Remove", width=10, state = DISABLED, command=lambda: self.remove(list(file_name.strip() for file_name in file_name_entry.get().split(','))))
+        self.remove_button = tk.Button(window, text="Remove", width=10, state = DISABLED, command=lambda: self.remove(file_name_entry.get().strip()))
         self.remove_button.place(x=255, y=50)
 
         self.retrieveall_button = tk.Button(window, text="Retrieve-all", width=10, state = DISABLED, command=lambda: self.retrieve_all())
@@ -476,14 +476,14 @@ class Client:
         self.searchfile_button = tk.Button(window, text="Search-file", width=10, state = DISABLED, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
         self.searchfile_button.place(x=510, y=50)
 
-        self.download_button = tk.Button(window, text="Download", width=10, state = DISABLED, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get().strip()), file_name_entry.get().strip()))
+        self.download_button = tk.Button(window, text="Download", width=10, state = DISABLED, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get()), file_name_entry.get().strip()))
         self.download_button.place(x=595, y=50)
 
         self.updatecontact_button = tk.Button(window, text="Update-contact", width=15, state = DISABLED, command=lambda: self.update_contact(name_entry.get().strip()))
         self.updatecontact_button.place(x=680, y=50)
 
         self.connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
-        self.connect_button.place(x=880, y=50)
+        self.connect_button.place(x=1080, y=50)
 
         self.start_ui_lock.release()
 
