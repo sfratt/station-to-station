@@ -15,6 +15,7 @@ class Client:
         gui_thread = threading.Thread(target=self.gui)
         gui_thread.start()
         
+        self.client_name = ''
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -144,14 +145,20 @@ class Client:
 
                     if ('RQ#' in body and body['RQ#'] == current_rq_num):
                         self.print_log('Server Response\n{}\n'.format(response))
+                        if('STATUS' in body):
+                            if (body['STATUS'] == 'REGISTER-DENIED' or body['STATUS'] == 'DE-REGISTERED' or body['STATUS'] == 'UPDATE-DENIED'):
+                                self.client_name = ''
+                        
+                        self.button_toggle("enable")
+                        self.display_client_name()
                         return
 
             except socket.timeout:
                 self.print_log('Connection timeout. Sending again...')
                 self.udp_socket.sendto(request, self.server_addr)
 
-            except ConnectionError as err:
-                self.print_log('[ERROR] {}'.format(err))
+            except ConnectionError:
+                self.print_log('ERROR : Server is unavailable')
                 return
 
         if response is None:
@@ -163,21 +170,23 @@ class Client:
             return
         
         self.button_toggle("disable")
+        self.client_name = name
         rq_num = self.get_rq_num()
         payload = {
-            'RQ#': rq_num, # Do circular cycle of numbers 0 - 7
-            'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
+            'RQ#': rq_num,
+            'NAME': name,
             'IP_ADDRESS': self.host,
             'UDP_SOCKET': None, # UDP socket number it can be reached at by the server # TODO Remove this field
-            'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
+            'TCP_SOCKET': self.tcp_port
         }
 
         self.print_log('Sending register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REGISTER', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        register_thread.start()
 
-    def de_register(self, name):
+    def de_register(self, name: str):
         if name == "":
             self.print_log("Name cannot be empty")
             return
@@ -191,8 +200,9 @@ class Client:
 
         self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('DE-REGISTER', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        de_register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        de_register_thread.start()
 
     def publish(self, list: list):
         if not list:
@@ -203,14 +213,15 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'LIST_OF_FILES': list
         }
 
         self.print_log('Sending publish request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('PUBLISH', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        publish_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        publish_thread.start()
 
     def remove(self, list: list):
         if not list:
@@ -221,30 +232,32 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'LIST_OF_FILES': list 
         }
 
         self.print_log('Sending remove request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REMOVE', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        remove_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        remove_thread.start()
     
     def retrieve_all(self):
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
         }
 
         self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-ALL', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        retrieve_all_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        retrieve_all_thread.start()
 
-    def retrieve_info(self, name):
-        if name == "":
+    def retrieve_info(self, search_name: str):
+        if search_name == "":
             self.print_log("Name cannot be empty")
             return
         
@@ -252,16 +265,17 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
-            'SEARCH_NAME': name
+            'NAME': self.client_name,
+            'SEARCH_NAME': search_name
         }
 
         self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-INFO', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        retrieve_info_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        retrieve_info_thread.start()
 
-    def search_file(self, file_name):
+    def search_file(self, file_name: str):
         if file_name == "":
             self.print_log("Name cannot be empty")
             return
@@ -270,14 +284,15 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'FILE_NAME': file_name
         }
 
         self.print_log('Sending search file request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('SEARCH-FILE', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        search_file_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        search_file_thread.start()
 
     def update_contact(self, name: str):
         if name == "":
@@ -285,6 +300,7 @@ class Client:
             return
         
         self.button_toggle("disable")
+        self.client_name = name
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
@@ -295,8 +311,9 @@ class Client:
 
         self.print_log('Sending update request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('UPDATE-CONTACT', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        update_contact_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        update_contact_thread.start()
 
     def download(self, host, port, file_name):
         if file_name == "" and host =="" and port == "":
@@ -370,6 +387,9 @@ class Client:
             self.print_log('Connection {}:{} closed'.format(host, port))
             self.button_toggle("enable")
 
+    def display_client_name(self):
+        self.client_name_label.config(text="Client: {}".format(self.client_name))
+
     def insert_log(self,msg):
         self.log_text.configure(state=NORMAL)
         self.log_text.insert(tk.END, msg + "\n")
@@ -412,6 +432,9 @@ class Client:
 
         self.log_text = tk.Text(window, height=51, width=124, state=DISABLED)
         self.log_text.place(x=0, y=75)
+
+        self.client_name_label = tk.Label(text="Client: ")
+        self.client_name_label.place(x=800, y=2)
 
         name_label = tk.Label(text="Name").place(x=0, y=2)
         name_entry = tk.Entry(window, width=15)
