@@ -158,6 +158,10 @@ class Client:
             self.print_log('No response from the server')
 
     def register(self, name):
+        if name == "":
+            self.print_log("Name cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -174,6 +178,10 @@ class Client:
         self.button_toggle("enable")
 
     def de_register(self, name):
+        if name == "":
+            self.print_log("Name cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -187,6 +195,10 @@ class Client:
         self.button_toggle("enable")
 
     def publish(self, list: list):
+        if not list:
+            self.print_log("List cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -201,6 +213,10 @@ class Client:
         self.button_toggle("enable")
 
     def remove(self, list: list):
+        if not list:
+            self.print_log("List cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -228,6 +244,10 @@ class Client:
         self.button_toggle("enable")
 
     def retrieve_info(self, name):
+        if name == "":
+            self.print_log("Name cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -242,6 +262,10 @@ class Client:
         self.button_toggle("enable")
 
     def search_file(self, file_name):
+        if file_name == "":
+            self.print_log("Name cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -256,6 +280,10 @@ class Client:
         self.button_toggle("enable")
 
     def update_contact(self, name: str):
+        if name == "":
+            self.print_log("Name cannot be empty")
+            return
+        
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -271,6 +299,10 @@ class Client:
         self.button_toggle("enable")
 
     def download(self, host, port, file_name):
+        if file_name == "" and host =="" and port == "":
+            self.print_log("File name, host or port cannot be empty")
+            return
+        
         self.button_toggle("disable")
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
