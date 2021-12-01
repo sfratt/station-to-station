@@ -15,6 +15,7 @@ class Client:
         gui_thread = threading.Thread(target=self.gui)
         gui_thread.start()
         
+        self.client_name = None
         self.rq_num = -1
         self.host = socket.gethostbyname(socket.gethostname())
         self.tcp_port = 10000
@@ -163,13 +164,14 @@ class Client:
             return
         
         self.button_toggle("disable")
+        self.client_name = name
         rq_num = self.get_rq_num()
         payload = {
-            'RQ#': rq_num, # Do circular cycle of numbers 0 - 7
-            'NAME': name, # Have user register name (store in .init file) **Name needs to be unique
+            'RQ#': rq_num,
+            'NAME': name,
             'IP_ADDRESS': self.host,
             'UDP_SOCKET': None, # UDP socket number it can be reached at by the server # TODO Remove this field
-            'TCP_SOCKET': self.tcp_port # TCP socket number to be used for file transfer with peers
+            'TCP_SOCKET': self.tcp_port
         }
 
         self.print_log('Sending register request RQ# {}...'.format(rq_num))
@@ -203,7 +205,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'LIST_OF_FILES': list
         }
 
@@ -221,7 +223,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'LIST_OF_FILES': list 
         }
 
@@ -235,7 +237,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
         }
 
         self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
@@ -243,8 +245,8 @@ class Client:
         self.send_to_udp_server(rq_num, request)
         self.button_toggle("enable")
 
-    def retrieve_info(self, name):
-        if name == "":
+    def retrieve_info(self, search_name: str):
+        if search_name == "":
             self.print_log("Name cannot be empty")
             return
         
@@ -252,8 +254,8 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
-            'SEARCH_NAME': name
+            'NAME': self.client_name,
+            'SEARCH_NAME': search_name
         }
 
         self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
@@ -261,7 +263,7 @@ class Client:
         self.send_to_udp_server(rq_num, request)
         self.button_toggle("enable")
 
-    def search_file(self, file_name):
+    def search_file(self, file_name: str):
         if file_name == "":
             self.print_log("Name cannot be empty")
             return
@@ -270,7 +272,7 @@ class Client:
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
-            'NAME': socket.gethostname(), # TODO Need to get registered name
+            'NAME': self.client_name,
             'FILE_NAME': file_name
         }
 
@@ -285,6 +287,7 @@ class Client:
             return
         
         self.button_toggle("disable")
+        self.client_name = name
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
