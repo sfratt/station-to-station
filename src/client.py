@@ -145,14 +145,15 @@ class Client:
 
                     if ('RQ#' in body and body['RQ#'] == current_rq_num):
                         self.print_log('Server Response\n{}\n'.format(response))
+                        self.button_toggle("enable")
                         return
 
             except socket.timeout:
                 self.print_log('Connection timeout. Sending again...')
                 self.udp_socket.sendto(request, self.server_addr)
 
-            except ConnectionError as err:
-                self.print_log('[ERROR] {}'.format(err))
+            except ConnectionError:
+                self.print_log('ERROR : Server is unavailable')
                 return
 
         if response is None:
@@ -176,8 +177,9 @@ class Client:
 
         self.print_log('Sending register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REGISTER', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        register_thread.start()
 
     def de_register(self, name):
         if name == "":
@@ -193,8 +195,9 @@ class Client:
 
         self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('DE-REGISTER', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        de_register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        de_register_thread.start()
 
     def publish(self, list: list):
         if not list:
@@ -211,8 +214,9 @@ class Client:
 
         self.print_log('Sending publish request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('PUBLISH', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        publish_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        publish_thread.start()
 
     def remove(self, list: list):
         if not list:
@@ -229,8 +233,9 @@ class Client:
 
         self.print_log('Sending remove request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('REMOVE', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        remove_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        remove_thread.start()
     
     def retrieve_all(self):
         self.button_toggle("disable")
@@ -242,8 +247,9 @@ class Client:
 
         self.print_log('Sending retrieve all request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-ALL', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        retrieve_all_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        retrieve_all_thread.start()
 
     def retrieve_info(self, search_name: str):
         if search_name == "":
@@ -260,8 +266,9 @@ class Client:
 
         self.print_log('Sending retrieve info request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('RETRIEVE-INFO', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        retrieve_info_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        retrieve_info_thread.start()
 
     def search_file(self, file_name: str):
         if file_name == "":
@@ -278,8 +285,9 @@ class Client:
 
         self.print_log('Sending search file request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('SEARCH-FILE', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        search_file_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        search_file_thread.start()
 
     def update_contact(self, name: str):
         if name == "":
@@ -298,8 +306,9 @@ class Client:
 
         self.print_log('Sending update request RQ# {}...'.format(rq_num))
         request = msg_lib.create_request('UPDATE-CONTACT', payload)
-        self.send_to_udp_server(rq_num, request)
-        self.button_toggle("enable")
+        # self.send_to_udp_server(rq_num, request)
+        update_contact_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
+        update_contact_thread.start()
 
     def download(self, host, port, file_name):
         if file_name == "" and host =="" and port == "":
