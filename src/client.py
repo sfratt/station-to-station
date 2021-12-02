@@ -381,7 +381,7 @@ class Client:
 
                 data = download_socket.recv(content_length).decode(FORMAT)
                 body = json.loads(data)
-                self.print_log('Incoming Data\n{}\n'.format(body))
+                self.print_log('Incoming Data\n{}\n'.format(data))
 
                 if ('STATUS' in body and body['STATUS'] == 'DOWNLOAD-ERROR'):
                     self.print_log('DOWNLOAD-ERROR: {}'.format(body['REASON']))
