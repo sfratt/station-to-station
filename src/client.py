@@ -25,8 +25,7 @@ class Client:
 
         self.get_tcp_port_num()
         self.start_ui_lock.acquire()
-        client_listening_thread = threading.Thread(target=self.start_tcp_server, args=())
-        client_listening_thread.daemon = True
+        client_listening_thread = threading.Thread(target=self.start_tcp_server, args=(), daemon=True)
         client_listening_thread.start()
 
     def get_rq_num(self):
@@ -55,12 +54,11 @@ class Client:
                 self.get_tcp_port_num()
 
         self.print_log('Client is listening on {}:{}'.format(self.host, self.tcp_port))
-        self.tcp_socket.listen()
+        self.tcp_socket.listen(5)
 
         while (True):
-            conn, addr = self.tcp_socket.accept()
-            new_client_thread = threading.Thread(target=self.handle_download_request, args=(conn, addr))
-            new_client_thread.daemon = True
+            client_socket, addr = self.tcp_socket.accept()
+            new_client_thread = threading.Thread(target=self.handle_download_request, args=(client_socket, addr), daemon=True)
             new_client_thread.start()
 
     def stop_client(self):
@@ -68,25 +66,26 @@ class Client:
         self.udp_socket.close()
         self.tcp_socket.close()
 
-    def handle_download_request(self, conn: socket.socket, addr):
+    def handle_download_request(self, client_socket: socket.socket, addr):
         self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
 
         try:
-            data = conn.recv(HEADER_SIZE).decode(FORMAT)
+            data = client_socket.recv(HEADER_SIZE).decode(FORMAT)
             header = msg_lib.extract_headers(data)
             content_length = header['content-length']
 
-            data = conn.recv(content_length).decode(FORMAT)
+            data = client_socket.recv(content_length).decode(FORMAT)
             body = json.loads(data)
             self.print_log('Client Request\nHeader: {}\nBody: {}\n'.format(header, body))
 
         except OSError as err:
             self.print_log('ERROR: {}'.format(err))
+            return
 
         self.print_log('Starting download...')
         chunk_num = 0
         file_name = body['FILE_NAME']
-        path = os.path.join('..\shared_folder', file_name)
+        path = os.path.join('..\shared_folder', file_name) # TODO Change directory name
         self.print_log('Reading file from {}'.format(path))
         
         try:
@@ -104,13 +103,13 @@ class Client:
                     if (len(chunk) < 200 or not chunk): # Check for EOF
                         self.print_log('Sending final chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE-END', payload)
-                        conn.send(response)
+                        client_socket.send(response)
                         break
 
                     else:
                         self.print_log('Sending chunk # {}'.format(chunk_num))
                         response = msg_lib.create_request('FILE', payload)
-                        conn.send(response)
+                        client_socket.send(response)
                         chunk_num += 1
             
             self.print_log('Download complete')
@@ -123,7 +122,7 @@ class Client:
                 'REASON': str(err)
             }
             response = msg_lib.create_response(payload, 500)
-            conn.send(response)
+            client_socket.send(response)
 
     def connect_to_server(self, host: str, port: str):
         if (host == ''):
@@ -347,6 +346,10 @@ class Client:
             port = int(port)
 
         self.button_toggle("disable")
+        download_thread = threading.Thread(target=self.handle_download, args=(host, port, file_name), daemon=True)
+        download_thread.start()
+
+    def handle_download(self, host: str, port: str, file_name: str):
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
 
@@ -354,13 +357,16 @@ class Client:
             self.print_log('Connecting to {}:{} for file download'.format(host, port))
             download_socket.connect((host, port))
 
+            rq_num = self.get_rq_num()
             payload = {
-                'RQ#': self.get_rq_num(),
+                'RQ#': rq_num,
                 'FILE_NAME': file_name
             }
 
+            self.print_log('Sending download request RQ# {}...'.format(rq_num))
             request = msg_lib.create_request('DOWNLOAD', payload)
             download_socket.send(request)
+            self.print_log('Download request successfully sent')
             
             # Handle Response of Files
             self.print_log('Downloading...')
@@ -375,7 +381,7 @@ class Client:
 
                 data = download_socket.recv(content_length).decode(FORMAT)
                 body = json.loads(data)
-                self.print_log('Incoming file chunk: {}'.format(body))
+                self.print_log('Incoming Data\n{}\n'.format(body))
 
                 if ('STATUS' in body and body['STATUS'] == 'DOWNLOAD-ERROR'):
                     self.print_log('DOWNLOAD-ERROR: {}'.format(body['REASON']))
@@ -396,7 +402,7 @@ class Client:
                         break
             
             # Assemble File
-            path = os.path.join('..\downloads', file_name)
+            path = os.path.join('..\downloads', file_name) # TODO Change directory name
             self.print_log('Assembling file to {}'.format(path))
 
             with open(path, 'w') as file:
