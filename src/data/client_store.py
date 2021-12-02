@@ -175,10 +175,8 @@ class ClientStore(Store):
                     self._cursor.execute(
                         "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (client[0],))
                     files = self._cursor.fetchall()
-                    if (len(files) > 0):
-                        files_info = [file[0] for file in files]
-                    else:
-                        files_info = []
+                    files_info = [file[0]
+                                  for file in files if not file[0] is None]
                     client += (files_info,)
                     all_info.append(client)
                 return all_info
@@ -202,10 +200,8 @@ class ClientStore(Store):
                 self._cursor.execute(
                     "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (search_name,))
                 files = self._cursor.fetchall()
-                if (len(files) > 0):
-                    file_info = [file[0] for file in files]
-                else:
-                    file_info = []
+                file_info = [file[0]
+                             for file in files if not file[0] is None]
                 client_info += (file_info,)
                 return tuple(client_info)
             else:
