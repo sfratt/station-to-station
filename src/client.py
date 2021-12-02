@@ -9,6 +9,12 @@ from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
 
 class Client:
     def __init__(self):
+        """
+        Initializes the client by starting the UI and TCP listening socket.
+        The TCP listening port will be used to accept incoming download requests.
+        """
+
+        # Lock to ensure UI is built before client can begin running
         self.start_ui_lock = threading.Lock()
         
         self.start_ui_lock.acquire()
@@ -17,32 +23,46 @@ class Client:
         
         self.client_name = ''
         self.rq_num = -1
-        self.host = socket.gethostbyname(socket.gethostname())
+        self.host = socket.gethostbyname(socket.gethostname()) # Get PC's current IP
         self.tcp_port = 10000
 
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP Socket
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP Socket
 
-        self.get_tcp_port_num()
+        self.get_tcp_port_num() # Get random TCP port number
         self.start_ui_lock.acquire()
         client_listening_thread = threading.Thread(target=self.start_tcp_server, args=(), daemon=True)
         client_listening_thread.start()
 
     def get_rq_num(self):
-        # self.rq_num = (self.rq_num + 1) % 8
+        """
+        Increment RQ# by 1. Returns new RQ#.
+        """
+        # self.rq_num = (self.rq_num + 1) % 8 # TODO Remove this
         self.rq_num += 1
         return self.rq_num
 
     def get_tcp_port_num(self):
+        """
+        Randomly generate a TCP port number from 10 000 to 65 535.
+        """
         self.tcp_port = randint(10000, 65535)
 
     def print_log(self, msg: str):
+        """
+        Attaches timestamp to message and prints to UI & terminal.
+        """
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         log  = '[{}] {}'.format(date_time, msg)
         self.insert_log(log)
         print(log)
 
     def start_tcp_server(self):
+        """
+
+        """
+
+        # Try to bind client listening port, if bind fails generate a new port number
         self.print_log('Starting Client...')
         is_bound = False
         while (not is_bound):
