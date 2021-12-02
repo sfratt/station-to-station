@@ -64,7 +64,7 @@ class Server:
                 return
 
             # Save in memory all clients RQ#
-            self.clients_rq_num_dict[f'{client_addr[0]}:{client_addr[1]}'].append(body['RQ#']) # TODO Change key to only ip address (maybe???)
+            self.clients_rq_num_dict[f'{client_addr[0]}:{client_addr[1]}'].append(body['RQ#'])
 
             method_call = msg_lib.extract_method(request)
             response = getattr(self, method_call)(body, client_addr)
@@ -108,12 +108,12 @@ class Server:
                 }, 500)
 
     def de_register(self, data: dict, client_addr):
-        client_dto = ClientDto(name = data['NAME'])
+        client_name = data['NAME']
         
         with ClientStore() as db:
             try:
                 self.print_log('Removing client from database')
-                db.deregister_client(client_dto)
+                db.deregister_client(client_name)
                 db.complete()
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
@@ -129,8 +129,7 @@ class Server:
                 }, 500)
     
     def publish(self, data: dict, client_addr):
-        file_dto = FileDto(data['NAME'], data['LIST_OF_FILES'])
-        # time.sleep(10) # Testing Timeout 
+        file_dto = FileDto(data['NAME'], data['LIST_OF_FILES']) 
         
         with ClientStore() as db:
             try:
@@ -171,7 +170,6 @@ class Server:
                     'REASON': '{}'.format(err)
                 }, 500)
 
-    # FIX - Missing list of files
     def retrieve_all(self, data: dict, client_addr):
         client_name = data['NAME']
 
@@ -183,7 +181,7 @@ class Server:
                 return msg_lib.create_response({
                     'RQ#': data['RQ#'],
                     'STATUS': 'RETRIEVED-ALL',
-                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[3], 'LIST_OF_FILES': []} for col in all_clients]
+                    'CLIENTS': [{'NAME': col[0], 'IP_ADDRESS': col[1], 'TCP_SOCKET': col[2], 'LIST_OF_FILES': col[3]} for col in all_clients]
                 }, 200)
 
             except StoreException as err:

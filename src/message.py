@@ -19,7 +19,7 @@ class Message:
         pass
 
     def create_request(self, method: str, payload):
-        body = json.dumps(payload)
+        body = json.dumps(payload, indent=2)
         content_length = len(body.encode(FORMAT))
         content_type = 'text/json'
         content_encoding = FORMAT
@@ -30,7 +30,7 @@ class Message:
         return request.encode(FORMAT)
 
     def create_response(self, payload, status_code: int):
-        body = json.dumps(payload)
+        body = json.dumps(payload, indent=2)
         content_length = len(body.encode(FORMAT))
         content_type = 'text/json'
         content_encoding = FORMAT
@@ -66,7 +66,3 @@ class Message:
 
 
 message = Message()
-
-# TESTs
-# message.create_request('TEST-METHOD', {'test': '123'})
-# message.create_response({'ACK': True}, 200)
