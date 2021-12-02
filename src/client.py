@@ -125,14 +125,33 @@ class Client:
             response = msg_lib.create_response(payload, 500)
             conn.send(response)
 
-    def connect_to_server(self, host, port):
+    def connect_to_server(self, host: str, port: str):
+        if (host == ''):
+            self.print_log("Host cannot be empty")
+            return
+        elif (port == ''):
+            self.print_log("Port number cannot be empty")
+            return  
+        elif (not port.isdecimal()):
+            self.print_log("Port number needs to be an integer value")
+            return
+        else:
+            port = int(port)
+
         self.server_addr = (host, port)
         self.print_log('Connected to server {}:{}'.format(host, port))
         self.button_toggle("server")
         # self.button_toggle("enable")
 
     def send_to_udp_server(self, current_rq_num: int, request: bytes):
-        self.udp_socket.sendto(request, self.server_addr)
+        try:
+            self.udp_socket.sendto(request, self.server_addr)
+
+        except OSError:
+            self.print_log('ERROR : Server is unavailable')
+            self.button_toggle("enable")
+            return
+
         self.udp_socket.settimeout(5)
 
         for i in range(3):
@@ -159,13 +178,16 @@ class Client:
 
             except ConnectionError:
                 self.print_log('ERROR : Server is unavailable')
+                self.button_toggle("enable")
                 return
 
         if response is None:
             self.print_log('No response from the server')
+            self.button_toggle("enable")
+            return
 
-    def register(self, name):
-        if name == "":
+    def register(self, name: str):
+        if (name == ""):
             self.print_log("Name cannot be empty")
             return
         
@@ -185,7 +207,7 @@ class Client:
         register_thread.start()
 
     def de_register(self, name: str):
-        if name == "":
+        if (name == ""):
             self.print_log("Name cannot be empty")
             return
         
@@ -202,7 +224,7 @@ class Client:
         de_register_thread.start()
 
     def publish(self, file_names: str):
-        if file_names == '':
+        if (file_names == ''):
             self.print_log("File name(s) cannot be empty")
             return
         
@@ -221,7 +243,7 @@ class Client:
         publish_thread.start()
 
     def remove(self, file_names: str):
-        if file_names == '':
+        if (file_names == ''):
             self.print_log("File name(s) cannot be empty")
             return
         
@@ -253,7 +275,7 @@ class Client:
         retrieve_all_thread.start()
 
     def retrieve_info(self, search_name: str):
-        if search_name == "":
+        if (search_name == ""):
             self.print_log("Name cannot be empty")
             return
         
@@ -271,7 +293,7 @@ class Client:
         retrieve_info_thread.start()
 
     def search_file(self, file_name: str):
-        if file_name == "":
+        if (file_name == ""):
             self.print_log("File name cannot be empty")
             return
         
@@ -289,7 +311,7 @@ class Client:
         search_file_thread.start()
 
     def update_contact(self, name: str):
-        if name == "":
+        if (name == ""):
             self.print_log("Name cannot be empty")
             return
         
@@ -308,11 +330,22 @@ class Client:
         update_contact_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
         update_contact_thread.start()
 
-    def download(self, host, port, file_name):
-        if file_name == "" and host =="" and port == "":
-            self.print_log("File name, host or port cannot be empty")
+    def download(self, host: str, port: str, file_name: str):
+        if (file_name == ""):
+            self.print_log("File name cannot be empty")
             return
-        
+        elif (host == ""):
+            self.print_log("Host cannot be empty")
+            return
+        elif (port == ''):
+            self.print_log("Port number cannot be empty")
+            return  
+        elif (not port.isdecimal()):
+            self.print_log("Port number needs to be an integer value")
+            return
+        else:
+            port = int(port)
+
         self.button_toggle("disable")
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
@@ -388,7 +421,7 @@ class Client:
         self.log_text.insert(tk.END, msg + "\n")
         self.log_text.configure(state=DISABLED)
         
-    def button_toggle(self, button_name):
+    def button_toggle(self, button_name: str):
         if button_name == "server":
             self.register_button.config(state=NORMAL)
             self.degister_button.config(state=NORMAL)
@@ -419,6 +452,7 @@ class Client:
     def gui(self):
         window = tk.Tk()
         window.geometry("1200x900")
+        window.title("COEN366 - Networking Project : Client Program")
         window.resizable(False, False)
 
         scroll = tk.Scrollbar(window)
@@ -430,19 +464,19 @@ class Client:
         self.client_name_label.place(x=0, y=0)
 
         name_label = tk.Label(text="Name").place(x=0, y=25)
-        name_entry = tk.Entry(window, width=15)
-        name_entry.place(x=80, y=25)
+        name_entry = tk.Entry(window, width=20)
+        name_entry.place(x=50, y=25)
         
-        file_name_label = tk.Label(text="File name(s)").place(x=190, y=25)
-        file_name_entry = tk.Entry(window, width=80)
+        file_name_label = tk.Label(text="File Name(s)").place(x=190, y=25)
+        file_name_entry = tk.Entry(window, width=87)
         file_name_entry.place(x=270, y=25)
         
-        host_name_label = tk.Label(text="Host name").place(x=0, y=50)
-        host_name_entry = tk.Entry(window, width=15)
-        host_name_entry.place(x=80, y=50)
+        host_name_label = tk.Label(text="Host").place(x=0, y=50)
+        host_name_entry = tk.Entry(window, width=20)
+        host_name_entry.place(x=50, y=50)
         
-        port_name_label = tk.Label(text="Port number").place(x=190, y=50)
-        port_name_entry = tk.Entry(window, width=15)
+        port_name_label = tk.Label(text="Port Number").place(x=190, y=50)
+        port_name_entry = tk.Entry(window, width=10)
         port_name_entry.place(x=270, y=50)
         port_name_entry.insert(0, '9000')
              
@@ -467,13 +501,13 @@ class Client:
         self.searchfile_button = tk.Button(window, text="Search-file", width=10, state = DISABLED, command=lambda: self.search_file(file_name_entry.get().split(',')[0].strip()))
         self.searchfile_button.place(x=510, y=75)
 
-        self.download_button = tk.Button(window, text="Download", width=10, state = DISABLED, command=lambda: self.download(host_name_entry.get().strip(), int(port_name_entry.get()), file_name_entry.get().strip()))
+        self.download_button = tk.Button(window, text="Download", width=10, state = DISABLED, command=lambda: self.download(host_name_entry.get().strip(), port_name_entry.get().strip(), file_name_entry.get().split(',')[0].strip()))
         self.download_button.place(x=595, y=75)
 
         self.updatecontact_button = tk.Button(window, text="Update-contact", width=15, state = DISABLED, command=lambda: self.update_contact(name_entry.get().strip()))
         self.updatecontact_button.place(x=680, y=75)
 
-        self.connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), int(port_name_entry.get())))
+        self.connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), port_name_entry.get().strip()))
         self.connect_button.place(x=1080, y=75)
 
         self.start_ui_lock.release()
