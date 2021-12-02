@@ -193,7 +193,7 @@ class ClientStore(Store):
         StoreException for `RETRIEVE-ERROR` (Specification 2.3).
         """
         try:
-            if (self.__check_client_exists(client_name)):
+            if (self.__check_client_exists(client_name) and self.__check_client_exists(search_name)):
                 sql = "SELECT name, ip_address, tcp_socket FROM clients WHERE name = (?)"
                 self._cursor.execute(sql, (search_name,))
                 client_info = self._cursor.fetchone()
@@ -206,7 +206,7 @@ class ClientStore(Store):
                 return tuple(client_info)
             else:
                 raise Exception(
-                    f"name {client_name} is not registered/does not exist in the database")
+                    f"name {client_name} or {search_name} is not registered/does not exist in the database")
         except Exception as err:
             raise StoreException(err)
 
