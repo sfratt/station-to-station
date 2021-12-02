@@ -2,7 +2,7 @@ import socket, threading, os, json
 from random import randint
 from datetime import datetime
 import tkinter as tk
-from tkinter.constants import DISABLED, NORMAL
+from tkinter.constants import DISABLED, NORMAL, RIGHT, Y
 
 from message import message as msg_lib
 from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
@@ -465,10 +465,13 @@ class Client:
         window.title("COEN366 - Networking Project : Client Program")
         window.resizable(False, False)
 
-        scroll = tk.Scrollbar(window)
+        scroll_bar = tk.Scrollbar(window)
+        scroll_bar.pack(side=RIGHT, fill=Y)
 
-        self.log_text = tk.Text(window, height=51, width=149, state=DISABLED)
+        self.log_text = tk.Text(window, height=51, width=147, yscrollcommand=scroll_bar.set, state=DISABLED)
         self.log_text.place(x=0, y=100)
+
+        scroll_bar.config(command=self.log_text.yview)
 
         self.client_name_label = tk.Label(text="Client: ")
         self.client_name_label.place(x=0, y=0)
@@ -518,7 +521,7 @@ class Client:
         self.updatecontact_button.place(x=680, y=75)
 
         self.connect_button = tk.Button(window, text="Connect to Server", width=15, command=lambda: self.connect_to_server(host_name_entry.get().strip(), port_name_entry.get().strip()))
-        self.connect_button.place(x=1080, y=75)
+        self.connect_button.place(x=1066, y=75)
 
         self.start_ui_lock.release()
 
