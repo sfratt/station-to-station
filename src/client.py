@@ -228,7 +228,7 @@ class Client:
             return
         
         self.button_toggle("disable")
-        files = list(file_name.strip() for file_name in file_names.split(','))
+        files = list(f"{file_name.strip().removesuffix('.txt')}.txt" for file_name in file_names.split(','))
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
@@ -247,7 +247,7 @@ class Client:
             return
         
         self.button_toggle("disable")
-        files = list(file_name.strip() for file_name in file_names.split(','))
+        files = list(f"{file_name.strip().removesuffix('.txt')}.txt" for file_name in file_names.split(','))
         rq_num = self.get_rq_num()
         payload = {
             'RQ#':  rq_num,
@@ -296,6 +296,8 @@ class Client:
             self.print_log("File name cannot be empty")
             return
         
+        file_name = f"{file_name.removesuffix('.txt')}.txt"
+
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -344,6 +346,8 @@ class Client:
             return
         else:
             port = int(port)
+
+        file_name = f"{file_name.removesuffix('.txt')}.txt"
 
         self.button_toggle("disable")
         download_thread = threading.Thread(target=self.handle_download, args=(host, port, file_name), daemon=True)
