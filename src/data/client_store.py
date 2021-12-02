@@ -101,22 +101,21 @@ class ClientStore(Store):
         except Exception as err:
             raise StoreException(err)
 
-    # TODO: Replace client_dto with just name parameter
-    def deregister_client(self, client_dto: ClientDto) -> None:
+    def deregister_client(self, name: str) -> None:
         """
         Deletes an existing client's name and all associated information.
         Implements `DE-REGISTER` and returns None or StoreException
         depending if the operation succeeds or fails (Specification 2.1).
         """
         try:
-            if (self.__check_client_exists(client_dto.name)):
+            if (self.__check_client_exists(name)):
                 self._cursor.execute(
-                    "DELETE FROM files WHERE client_name = (?)", (client_dto.name,))
+                    "DELETE FROM files WHERE client_name = (?)", (name,))
                 self._cursor.execute(
-                    "DELETE FROM clients WHERE name = (?)", (client_dto.name,))
+                    "DELETE FROM clients WHERE name = (?)", (name,))
             else:
                 raise Exception(
-                    f"name {client_dto.name} is not registered/does not exist in the database")
+                    f"name {name} is not registered/does not exist in the database")
         except Exception as err:
             raise StoreException(err)
 
