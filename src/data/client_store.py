@@ -37,8 +37,8 @@ class ClientStore(Store):
 
             self._cursor.execute(clients_sql)
             self._cursor.execute(files_sql)
-        except Exception as e:
-            raise StoreException('error creating tables', e.args)
+        except Exception as err:
+            raise StoreException(err)
 
     def __check_client_exists(self, client_name: str) -> bool:
         """Check if a client is registered/exists or not."""
@@ -49,16 +49,15 @@ class ClientStore(Store):
         else:
             return False
 
-    # TODO: Determine best way to check if files exist or not for remove_files method
-    # def __check_file_exists(self, name: str, files: List[str]) -> bool:
-    #     """Check if a file has been published/exists or not."""
-    #     file_tuples = [(name, file) for file in files]
-    #     self._cursor.executemany(
-    #         "SELECT * FROM files WHERE client_name = (?) AND file_name = (?)", (name, file_tuples))
-    #     if (self._cursor.fetchone()):
-    #         return True
-    #     else:
-    #         return False
+    def __check_files_exist(self, name: str, files: List[str]) -> bool:
+        """Check if files have been published/exist for a particular client."""
+        sql = "SELECT * FROM files WHERE client_name = (?) AND file_name IN ({0})".format(
+            ', '.join('?' for _ in files))
+        self._cursor.execute(sql, (name, *files))
+        if (self._cursor.fetchall()):
+            return True
+        else:
+            return False
 
     def __check_file_exists(self, file_name: str) -> bool:
         """Check if a file has been published/exists or not."""
@@ -83,7 +82,7 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_dto.name} already exists in the database")
         except Exception as err:
-            raise StoreException("error creating client", err.args)
+            raise StoreException(err)
 
     def update_client(self, client_dto: ClientDto) -> None:
         """
@@ -100,28 +99,25 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {client_dto.name} does not exist in the database")
         except Exception as err:
-            raise StoreException("error updating client", err.args)
+            raise StoreException(err)
 
-    # TODO: Make sure client cannot request deregistration of another client that is not itself
-    # Check IP and compare to DTO information being sent up, or get client info first and check IP
-    # field against sender before deleting, in case we only send name instead of client DTO
-    def deregister_client(self, client_dto: ClientDto) -> None:
+    def deregister_client(self, name: str) -> None:
         """
         Deletes an existing client's name and all associated information.
         Implements `DE-REGISTER` and returns None or StoreException
         depending if the operation succeeds or fails (Specification 2.1).
         """
         try:
-            if (self.__check_client_exists(client_dto.name)):
+            if (self.__check_client_exists(name)):
                 self._cursor.execute(
-                    "DELETE FROM files WHERE client_name = (?)", (client_dto.name,))
+                    "DELETE FROM files WHERE client_name = (?)", (name,))
                 self._cursor.execute(
-                    "DELETE FROM clients WHERE name = (?)", (client_dto.name,))
+                    "DELETE FROM clients WHERE name = (?)", (name,))
             else:
                 raise Exception(
-                    f"name {client_dto.name} is not registered/does not exist in the database")
+                    f"name {name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error deleting client", err.args)
+            raise StoreException(err)
 
     def publish_files(self, file_dto: FileDto) -> None:
         """
@@ -139,9 +135,8 @@ class ClientStore(Store):
                 raise Exception(
                     f"name {file_dto.client_name} does not exist in the database")
         except Exception as err:
-            raise StoreException("error inserting files", err.args)
+            raise StoreException(err)
 
-    # TODO: Delete operation does not fail if files have already been removed
     def remove_files(self, file_dto: FileDto) -> None:
         """
         Removes a file or list of files belonging to a particular client.
@@ -150,17 +145,20 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(file_dto.client_name)):
-                file_tuples = [(file_dto.client_name, file)
-                               for file in file_dto.files]
-                self._cursor.executemany(
-                    "DELETE FROM files WHERE client_name = (?) AND file_name = (?)", file_tuples)
+                if (self.__check_files_exist(file_dto.client_name, file_dto.files)):
+                    file_tuples = [(file_dto.client_name, file)
+                                   for file in file_dto.files]
+                    self._cursor.executemany(
+                        "DELETE FROM files WHERE client_name = (?) AND file_name = (?)", file_tuples)
+                else:
+                    raise Exception(
+                        f"trying to remove file(s) {file_dto.files} that do not exist in the database")
             else:
                 raise Exception(
                     f"name {file_dto.client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error removing files", err.args)
+            raise StoreException(err)
 
-    # TODO: Fix formatting before returning and add docstring comment
     def retrieve_all(self, client_name: str) -> List:
         """
         Retrieves name, IP address, TCP socket and file list for all clients.
@@ -169,15 +167,24 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(client_name)):
-                sql = "SELECT name, ip_address, tcp_socket, file_name FROM clients INNER JOIN files ON name = client_name"
-                self._cursor.execute(sql)
-                files = self._cursor.fetchall()
-                return files
+                self._cursor.execute(
+                    "SELECT name, ip_address, tcp_socket FROM clients")
+                clients = self._cursor.fetchall()
+                all_info = []
+                for client in clients:
+                    self._cursor.execute(
+                        "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (client[0],))
+                    files = self._cursor.fetchall()
+                    files_info = [file[0]
+                                  for file in files if not file[0] is None]
+                    client += (files_info,)
+                    all_info.append(client)
+                return all_info
             else:
                 raise Exception(
                     f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException("error retrieving clients", err.args)
+            raise StoreException(err)
 
     def retrieve_info(self, client_name: str, search_name: str) -> Tuple:
         """
@@ -187,20 +194,21 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(client_name)):
-                sql = "SELECT name, ip_address, tcp_socket FROM clients INNER JOIN files ON name = client_name WHERE name = (?)"
+                sql = "SELECT name, ip_address, tcp_socket FROM clients WHERE name = (?)"
                 self._cursor.execute(sql, (search_name,))
                 client_info = self._cursor.fetchone()
                 self._cursor.execute(
-                    "SELECT file_name FROM files INNER JOIN clients ON client_name = name WHERE client_name = (?)", (search_name,))
-                file_info = self._cursor.fetchall()
-                files = [file[0] for file in file_info]
-                client_info += (files,)
+                    "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (search_name,))
+                files = self._cursor.fetchall()
+                file_info = [file[0]
+                             for file in files if not file[0] is None]
+                client_info += (file_info,)
                 return tuple(client_info)
             else:
                 raise Exception(
                     f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException(err.args)
+            raise StoreException(err)
 
     def search_file(self, client_name: str, file_name: str) -> List:
         """
@@ -218,5 +226,8 @@ class ClientStore(Store):
                 else:
                     raise Exception(
                         f"file name {file_name} does not exist in the database")
+            else:
+                raise Exception(
+                    f"name {client_name} is not registered/does not exist in the database")
         except Exception as err:
-            raise StoreException(err.args)
+            raise StoreException(err)
