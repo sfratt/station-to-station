@@ -159,7 +159,6 @@ class ClientStore(Store):
         except Exception as err:
             raise StoreException(err)
 
-    # TODO: Fix formatting before returning
     def retrieve_all(self, client_name: str) -> List:
         """
         Retrieves name, IP address, TCP socket and file list for all clients.
@@ -168,10 +167,21 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(client_name)):
-                sql = "SELECT name, ip_address, tcp_socket, file_name FROM clients INNER JOIN files ON name = client_name"
-                self._cursor.execute(sql)
-                files = self._cursor.fetchall()
-                return files
+                self._cursor.execute(
+                    "SELECT name, ip_address, tcp_socket FROM clients")
+                clients = self._cursor.fetchall()
+                all_info = []
+                for client in clients:
+                    self._cursor.execute(
+                        "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (client[0],))
+                    files = self._cursor.fetchall()
+                    if (len(files) > 0):
+                        files_info = [file[0] for file in files]
+                    else:
+                        files_info = []
+                    client += (files_info,)
+                    all_info.append(client)
+                return all_info
             else:
                 raise Exception(
                     f"name {client_name} is not registered/does not exist in the database")
@@ -186,17 +196,17 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(client_name)):
-                sql = "SELECT name, ip_address, tcp_socket FROM clients INNER JOIN files ON name = client_name WHERE name = (?)"
+                sql = "SELECT name, ip_address, tcp_socket FROM clients WHERE name = (?)"
                 self._cursor.execute(sql, (search_name,))
                 client_info = self._cursor.fetchone()
                 self._cursor.execute(
-                    "SELECT file_name FROM files INNER JOIN clients ON client_name = name WHERE client_name = (?)", (search_name,))
-                file_info = self._cursor.fetchall()
-                if (len(file_info) > 0):
-                    files = [file[0] for file in file_info]
+                    "SELECT file_name FROM clients LEFT JOIN files ON name = client_name WHERE name = (?)", (search_name,))
+                files = self._cursor.fetchall()
+                if (len(files) > 0):
+                    file_info = [file[0] for file in files]
                 else:
-                    files = []
-                client_info += (files,)
+                    file_info = []
+                client_info += (file_info,)
                 return tuple(client_info)
             else:
                 raise Exception(
