@@ -49,16 +49,15 @@ class ClientStore(Store):
         else:
             return False
 
-    # TODO: Determine best way to check if files exist or not for remove_files method
-    # def __check_file_exists(self, name: str, files: List[str]) -> bool:
-    #     """Check if a file has been published/exists or not."""
-    #     file_tuples = [(name, file) for file in files]
-    #     self._cursor.executemany(
-    #         "SELECT * FROM files WHERE client_name = (?) AND file_name = (?)", (name, file_tuples))
-    #     if (self._cursor.fetchone()):
-    #         return True
-    #     else:
-    #         return False
+    def __check_files_exist(self, name: str, files: List[str]) -> bool:
+        """Check if files have been published/exist for a particular client."""
+        sql = "SELECT * FROM files WHERE client_name = (?) AND file_name IN ({0})".format(
+            ', '.join('?' for _ in files))
+        self._cursor.execute(sql, (name, *files))
+        if (self._cursor.fetchall()):
+            return True
+        else:
+            return False
 
     def __check_file_exists(self, file_name: str) -> bool:
         """Check if a file has been published/exists or not."""
@@ -102,9 +101,7 @@ class ClientStore(Store):
         except Exception as err:
             raise StoreException(err)
 
-    # TODO: Make sure client cannot request deregistration of another client that is not itself
-    # Check IP and compare to DTO information being sent up, or get client info first and check IP
-    # field against sender before deleting, in case we only send name instead of client DTO
+    # TODO: Replace client_dto with just name parameter
     def deregister_client(self, client_dto: ClientDto) -> None:
         """
         Deletes an existing client's name and all associated information.
@@ -141,7 +138,6 @@ class ClientStore(Store):
         except Exception as err:
             raise StoreException(err)
 
-    # TODO: Delete operation does not fail if files have already been removed
     def remove_files(self, file_dto: FileDto) -> None:
         """
         Removes a file or list of files belonging to a particular client.
@@ -150,17 +146,21 @@ class ClientStore(Store):
         """
         try:
             if (self.__check_client_exists(file_dto.client_name)):
-                file_tuples = [(file_dto.client_name, file)
-                               for file in file_dto.files]
-                self._cursor.executemany(
-                    "DELETE FROM files WHERE client_name = (?) AND file_name = (?)", file_tuples)
+                if (self.__check_files_exist(file_dto.client_name, file_dto.files)):
+                    file_tuples = [(file_dto.client_name, file)
+                                   for file in file_dto.files]
+                    self._cursor.executemany(
+                        "DELETE FROM files WHERE client_name = (?) AND file_name = (?)", file_tuples)
+                else:
+                    raise Exception(
+                        f"trying to remove file(s) {file_dto.files} that do not exist in the database")
             else:
                 raise Exception(
                     f"name {file_dto.client_name} is not registered/does not exist in the database")
         except Exception as err:
             raise StoreException(err)
 
-    # TODO: Fix formatting before returning and add docstring comment
+    # TODO: Fix formatting before returning
     def retrieve_all(self, client_name: str) -> List:
         """
         Retrieves name, IP address, TCP socket and file list for all clients.
