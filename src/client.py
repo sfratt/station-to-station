@@ -484,6 +484,9 @@ class Client:
             self.connect_button.config(state=NORMAL)
 
     def gui(self):
+        """
+        Function to create the GUI for the user to interact with including all entry fields, buttons and log text field
+        """
         window = tk.Tk()
         window.geometry("1200x900")
         window.title("COEN366 - Networking Project : Client Program")

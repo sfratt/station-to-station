@@ -72,6 +72,9 @@ class Message:
         return content_dict
 
     def extract_body(self, message: str):
+        """
+        Function to extract the body of the response and request
+        """
         body = message.split('\r\n\r\n')[1]
         
         return json.loads(body)
