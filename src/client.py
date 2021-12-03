@@ -158,8 +158,8 @@ class Client:
 
         self.server_addr = (host, port)
         self.print_log('Connected to server {}:{}'.format(host, port))
-        self.button_toggle("server")
-        # self.button_toggle("enable")
+        # self.button_toggle("server")
+        self.button_toggle("enable")
 
     def send_to_udp_server(self, current_rq_num: int, request: bytes):
         try:
