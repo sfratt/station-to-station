@@ -12,6 +12,11 @@ from models.file_dto import FileDto
 class Server:
 
     def __init__(self, host, port):
+        """
+        Initializes the server by creating a UDP socket and a new database if the
+        database does not exist.
+        """
+
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP Socket
@@ -25,10 +30,18 @@ class Server:
                 pass # DB already created, do nothing
 
     def print_log(self, msg: str):
+        """
+        Attaches timestamp to message and prints to terminal.
+        """
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         print('[{}] {}'.format(date_time, msg))
 
     def start_server(self):
+        """
+        Infinite loop to listen for incoming requests from clients.
+        Each request is handled on a new thread.
+        """
+
         self.print_log('Starting Server...')
         self.server_socket.bind((self.host, self.port))
         self.print_log('Server is listening on {}:{}'.format(self.host, self.port))
@@ -44,10 +57,18 @@ class Server:
                 self.print_log('ERROR: {}'.format(err))
 
     def stop_server(self):
+        """
+        Close server's UDP socket.
+        """
         self.print_log('Server is shutting down...')
         self.server_socket.close()
 
     def handle_request(self, request: bytes, client_addr):
+        """
+        Read client's request and call corresponding function to that method. If method is not found response with an invalid request. 
+        If response is empty just ignore request and do not send a response. All duplicate requests (RQ#) are ignored.
+        """
+
         request = request.decode(FORMAT)
         self.print_log('New request from {}:{}'.format(client_addr[0], client_addr[1]))
         self.print_log('Client Request\n{}\n'.format(request))
@@ -65,10 +86,10 @@ class Server:
             self.clients_rq_num_dict[f'{client_addr[0]}:{client_addr[1]}'].append(body['RQ#'])
 
             method_call = msg_lib.extract_method(request)
-            response = getattr(self, method_call)(body, client_addr)
+            response = getattr(self, method_call)(body, client_addr) # Call function based on method in request header
         
         except AttributeError:
-            response = self.invalid_request()
+            response = self.invalid_request() # Invalid request if method is not found 
 
         try:
             self.server_socket.sendto(response, client_addr)
