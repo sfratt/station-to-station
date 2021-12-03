@@ -133,7 +133,7 @@ class ClientStore(Store):
                     "INSERT INTO files VALUES (?, ?)", file_tuples)
             else:
                 raise Exception(
-                    f"name {file_dto.client_name} does not exist in the database")
+                    f"name {file_dto.client_name} is not registered/does not exist in the database")
         except Exception as err:
             raise StoreException(err)
 

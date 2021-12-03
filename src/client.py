@@ -208,6 +208,10 @@ class Client:
         if (name == ""):
             self.print_log("Name cannot be empty")
             return
+
+        if (self.client_name != ''):
+            self.print_log('A client is still registered')
+            return
         
         self.button_toggle("disable")
         self.client_name = name
@@ -224,16 +228,12 @@ class Client:
         register_thread = threading.Thread(target=self.send_to_udp_server, args=(rq_num, request), daemon=True)
         register_thread.start()
 
-    def de_register(self, name: str):
-        if (name == ""):
-            self.print_log("Name cannot be empty")
-            return
-        
+    def de_register(self):
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
             'RQ#': rq_num,
-            'NAME': name, 
+            'NAME': self.client_name, 
         }
 
         self.print_log('Sending de-register request RQ# {}...'.format(rq_num))
@@ -511,7 +511,7 @@ class Client:
         self.register_button = tk.Button(window, text="Register", width=10, state = DISABLED, command=lambda: self.register(name_entry.get().strip()))
         self.register_button.place(x=0, y=75)
 
-        self.degister_button = tk.Button(window, text="Deregister", width=10, state = DISABLED, command=lambda: self.de_register(name_entry.get().strip()))
+        self.degister_button = tk.Button(window, text="Deregister", width=10, state = DISABLED, command=lambda: self.de_register())
         self.degister_button.place(x=85, y=75)
 
         self.publish_button = tk.Button(window, text="Publish", width=10, state = DISABLED, command=lambda: self.publish(file_name_entry.get().strip()))
