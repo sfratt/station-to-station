@@ -10,7 +10,7 @@ from models.constants import BUFFER_SIZE, FORMAT, HEADER_SIZE
 class Client:
     def __init__(self):
         """
-        Initializes the client by starting the UI and TCP listening socket.
+        Initializes the client by starting the GUI and TCP listening socket.
         The TCP listening port will be used to accept incoming download requests.
         """
 
@@ -49,7 +49,7 @@ class Client:
 
     def print_log(self, msg: str):
         """
-        Attaches timestamp to message and prints to UI & terminal.
+        Attaches timestamp to message and prints to GUI & terminal.
         """
         date_time = datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
         log  = '[{}] {}'.format(date_time, msg)
@@ -58,7 +58,8 @@ class Client:
 
     def start_tcp_server(self):
         """
-
+        Infinite loop to listen for incoming download requests from other clients.
+        Listening buffer set to 5. Each request is handled on a new thread.
         """
 
         # Try to bind client listening port, if bind fails generate a new port number
@@ -81,11 +82,20 @@ class Client:
             new_client_thread.start()
 
     def stop_client(self):
+        """
+        Close client's UDP and TCP sockets.
+        """
         self.print_log('Client is shutting down...')
         self.udp_socket.close()
         self.tcp_socket.close()
 
     def handle_download_request(self, client_socket: socket.socket, addr):
+        """
+        Handle client's download request. Function will read the download file name from the request and read file in public folder.
+        Chunks of 200 characters are read and sent to the client until the end of file is reached. A special `FILE-END` response is sent 
+        to identify the end of file is reached. If file doesn't exist respond with `DOWNLOAD-ERROR`.
+        """
+
         self.print_log('New connection from {}:{}'.format(addr[0], addr[1]))
 
         try:
@@ -144,6 +154,10 @@ class Client:
             client_socket.send(response)
 
     def connect_to_server(self, host: str, port: str):
+        """
+        Save server's ip address and port number in memory.
+        """
+
         if (host == ''):
             self.print_log("Host cannot be empty")
             return
@@ -162,6 +176,11 @@ class Client:
         self.button_toggle("enable")
 
     def send_to_udp_server(self, current_rq_num: int, request: bytes):
+        """
+        Send requests to server. All requests will retry 3 times if the connection times out or will stop trying if the server is unavailable.
+        All responses not related to the current client's RQ# are ignored.
+        """
+
         try:
             self.udp_socket.sendto(request, self.server_addr)
 
@@ -180,9 +199,10 @@ class Client:
                     response = response.decode(FORMAT)
                     body = msg_lib.extract_body(response)
 
-                    if ('RQ#' in body and body['RQ#'] == current_rq_num):
+                    if ('RQ#' in body and body['RQ#'] == current_rq_num): # Ignore if response is not for current RQ#
                         self.print_log('Server Response\n{}\n'.format(response))
                         if('STATUS' in body):
+                            # Don't save client's name if register or update fails or if de-register is successful
                             if (body['STATUS'] == 'REGISTER-DENIED' or body['STATUS'] == 'DE-REGISTERED' or body['STATUS'] == 'UPDATE-DENIED'):
                                 self.client_name = ''
                         
@@ -205,6 +225,11 @@ class Client:
             return
 
     def register(self, name: str):
+        """
+        Create payload for register method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (name == ""):
             self.print_log("Name cannot be empty")
             return
@@ -229,6 +254,11 @@ class Client:
         register_thread.start()
 
     def de_register(self):
+        """
+        Create payload for de-register method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -242,6 +272,11 @@ class Client:
         de_register_thread.start()
 
     def publish(self, file_names: str):
+        """
+        Create payload for publish method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (file_names == ''):
             self.print_log("File name(s) cannot be empty")
             return
@@ -261,6 +296,11 @@ class Client:
         publish_thread.start()
 
     def remove(self, file_names: str):
+        """
+        Create payload for remove method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (file_names == ''):
             self.print_log("File name(s) cannot be empty")
             return
@@ -280,6 +320,11 @@ class Client:
         remove_thread.start()
     
     def retrieve_all(self):
+        """
+        Create payload for retrieve-all method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         self.button_toggle("disable")
         rq_num = self.get_rq_num()
         payload = {
@@ -293,6 +338,11 @@ class Client:
         retrieve_all_thread.start()
 
     def retrieve_info(self, search_name: str):
+        """
+        Create payload for retrieve-info method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (search_name == ""):
             self.print_log("Name cannot be empty")
             return
@@ -311,6 +361,11 @@ class Client:
         retrieve_info_thread.start()
 
     def search_file(self, file_name: str):
+        """
+        Create payload for search-file method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (file_name == ""):
             self.print_log("File name cannot be empty")
             return
@@ -329,6 +384,11 @@ class Client:
         search_file_thread.start()
 
     def update_contact(self, name: str):
+        """
+        Create payload for update-contact method and send request to server. 
+        Sending request is handled on a new thread.
+        """
+
         if (name == ""):
             self.print_log("Name cannot be empty")
             return
@@ -349,6 +409,10 @@ class Client:
         update_contact_thread.start()
 
     def download(self, host: str, port: str, file_name: str):
+        """
+        Validate download request and handle download on a new thread.
+        """
+
         if (file_name == ""):
             self.print_log("File name cannot be empty")
             return
@@ -369,6 +433,12 @@ class Client:
         download_thread.start()
 
     def handle_download(self, host: str, port: str, file_name: str):
+        """
+        Create payload for download method, create a new socket to perform download and send request to client.
+        Keep receiving chunks until all chunks are received. Assemble file and close download socket. If `DOWNLOAD-ERROR`
+        is received, display error message and close download socket.
+        """
+
         download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.print_log('Download socket created')
 
@@ -414,7 +484,7 @@ class Client:
                     total_chunk_num = body['CHUNK#']
                     stop_download_check = True
 
-                if (stop_download_check):
+                if (stop_download_check): # Ensure all file chunks from 0 to EOF chunk# are received before assembling file
                     total_chunk_set = set(range(1, total_chunk_num + 1))
                     current_chunk_set = set(chunk_dict.keys())
                     if (total_chunk_set.issubset(current_chunk_set)):
