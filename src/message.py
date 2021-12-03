@@ -19,6 +19,9 @@ class Message:
         pass
 
     def create_request(self, method: str, payload):
+        """
+        Function to create the request to send to the server
+        """
         body = json.dumps(payload, indent=2)
         content_length = len(body.encode(FORMAT))
         content_type = 'text/json'
@@ -30,6 +33,9 @@ class Message:
         return request.encode(FORMAT)
 
     def create_response(self, payload, status_code: int):
+        """
+        Function to create the response of the server to the user
+        """
         body = json.dumps(payload, indent=2)
         content_length = len(body.encode(FORMAT))
         content_type = 'text/json'
@@ -44,11 +50,17 @@ class Message:
         return response.encode(FORMAT)
 
     def extract_method(self, message: str):
+        """
+        Function to extract the function called by the user
+        """
         method = message.split('\r\n')[0].strip()
 
         return method.lower().replace('-', '_')
         
     def extract_headers(self, message: str):
+        """
+        Function to extract information from the response such as content length, content type and content encoding
+        """
         message_split = message.split('\r\n')
         matches = [message.split(':')[1].strip() for message in message_split[1:4]]    
         content_dict = {

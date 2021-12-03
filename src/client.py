@@ -439,14 +439,23 @@ class Client:
             self.button_toggle("enable")
 
     def display_client_name(self):
+        """
+        Function to write the client's name to the GUI
+        """
         self.client_name_label.config(text="Client: {}".format(self.client_name))
 
     def insert_log(self,msg):
+        """
+        Function to write text to log in the GUI
+        """
         self.log_text.configure(state=NORMAL)
         self.log_text.insert(tk.END, msg + "\n")
         self.log_text.configure(state=DISABLED)
         
     def button_toggle(self, button_name: str):
+        """
+        Function to toggle buttons on and off depending on whether a task is running or not
+        """
         if button_name == "server":
             self.register_button.config(state=NORMAL)
             self.degister_button.config(state=NORMAL)
