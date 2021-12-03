@@ -15,7 +15,6 @@ class Server:
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP Socket
-        self.socket_lock = threading.Lock()
         self.clients_rq_num_dict = defaultdict(list)
 
         with ClientStore() as db:
@@ -53,7 +52,6 @@ class Server:
         self.print_log('New request from {}:{}'.format(client_addr[0], client_addr[1]))
         self.print_log('Client Request\n{}\n'.format(request))
 
-        # with self.socket_lock:
         headers = msg_lib.extract_headers(request)
         body = msg_lib.extract_body(request)
 
