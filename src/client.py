@@ -105,7 +105,7 @@ class Client:
         self.print_log('Starting download...')
         chunk_num = 0
         file_name = body['FILE_NAME']
-        path = os.path.join('..\shared_folder', file_name) # TODO Change directory name
+        path = os.path.join('..\public', file_name)
         self.print_log('Reading file from {}'.format(path))
         
         try:
@@ -426,7 +426,7 @@ class Client:
                         break
             
             # Assemble File
-            path = os.path.join('..\downloads', file_name) # TODO Change directory name
+            path = os.path.join('..\public', file_name)
             self.print_log('Assembling file to {}'.format(path))
 
             with open(path, 'w') as file:
